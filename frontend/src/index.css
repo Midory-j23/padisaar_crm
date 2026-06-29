@@ -1,0 +1,104 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  font-family: 'Vazirmatn', sans-serif;
+  box-sizing: border-box;
+}
+
+body {
+  direction: rtl;
+  text-align: right;
+  margin: 0;
+  background-color: #f8fafc;
+}
+
+input,
+textarea,
+select {
+  font-family: 'Vazirmatn', sans-serif;
+}
+
+input[type='number'],
+input[type='tel'] {
+  direction: ltr;
+  text-align: right;
+}
+
+input::placeholder,
+textarea::placeholder {
+  text-align: right;
+}
+
+[role='dialog'] button[data-dialog-close] {
+  left: 1rem;
+  right: auto;
+}
+
+[data-sonner-toaster] {
+  left: 1rem !important;
+  right: auto !important;
+}
+
+th {
+  text-align: right !important;
+}
+
+.checkbox-label {
+  flex-direction: row-reverse;
+  justify-content: flex-end;
+}
+
+select {
+  text-align: right;
+  background-position: left 0.5rem center;
+}
+
+.input,
+input:not([type='checkbox']):not([type='radio']),
+textarea {
+  text-align: right;
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 1.5cm;
+  }
+
+  body {
+    direction: rtl;
+    font-family: 'Vazirmatn', sans-serif;
+    background: white !important;
+    color: black;
+  }
+
+  aside,
+  header,
+  nav,
+  [data-print-hide] {
+    display: none !important;
+  }
+
+  main {
+    padding: 0 !important;
+  }
+
+  .shadow-sm,
+  .shadow-lg,
+  .shadow-xl {
+    box-shadow: none !important;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  th,
+  td {
+    border: 1px solid #ccc;
+    padding: 0.35rem 0.5rem;
+  }
+}
