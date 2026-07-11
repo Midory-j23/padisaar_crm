@@ -14,6 +14,7 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
+  LabelList,
   Legend,
   Line,
   LineChart,
@@ -154,11 +155,17 @@ function ManagerDashboard() {
 
   const funnelChartData = useMemo(() => {
     if (!funnel?.stages) return []
-    return funnel.stages.map((s) => ({
-      name: enumLabel('sales_stage', s.stage),
-      count: s.count,
-      value: Number(s.total_value) / 1_000_000,
-    }))
+    return funnel.stages.map((s, idx) => {
+      const prev = idx > 0 ? funnel.stages[idx - 1] : null
+      const conversion =
+        prev && prev.count > 0 ? Math.round((s.count / prev.count) * 100) : null
+      return {
+        name: enumLabel('sales_stage', s.stage),
+        count: s.count,
+        value: Number(s.total_value) / 1_000_000,
+        conversion,
+      }
+    })
   }, [funnel])
 
   const trendChartData = useMemo(
@@ -259,7 +266,17 @@ function ManagerDashboard() {
                   name={fa.dashboard.funnel_count}
                   fill="#1e3a5f"
                   radius={[4, 4, 0, 0]}
-                />
+                >
+                  <LabelList
+                    dataKey="conversion"
+                    position="top"
+                    formatter={(v) => {
+                      const n = typeof v === 'number' ? v : null
+                      return n != null && n > 0 ? `${formatPercentFa(n)} ↓` : ''
+                    }}
+                    style={{ fontFamily: CHART_FONT, fontSize: 10, fill: '#64748b' }}
+                  />
+                </Bar>
                 <Bar
                   yAxisId="right"
                   dataKey="value"
@@ -272,70 +289,6 @@ function ManagerDashboard() {
           </div>
         </CardContent>
       </Card>
-
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <h3 className="text-base font-semibold">{fa.dashboard.team_performance}</h3>
-          </CardHeader>
-          <CardContent className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b text-gray-500">
-                  <th className="py-2 text-right font-medium">{fa.dashboard.expert}</th>
-                  <th className="py-2 text-right font-medium">{fa.dashboard.active_opps}</th>
-                  <th className="py-2 text-right font-medium">{fa.dashboard.pipeline_col}</th>
-                  <th className="py-2 text-right font-medium">{fa.dashboard.win_rate_col}</th>
-                  <th className="py-2 text-right font-medium">{fa.dashboard.last_activity_col}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {team?.members.map((m) => (
-                  <tr key={m.user_id} className="border-b last:border-0">
-                    <td className="py-2 font-medium">{m.user_name}</td>
-                    <td className="py-2">{toPersianDigits(m.open_count)}</td>
-                    <td className="py-2">{formatCurrencyFaShort(Number(m.pipeline_value))}</td>
-                    <td className="py-2">{formatPercentFa(m.win_rate)}</td>
-                    <td className="py-2 text-gray-500">
-                      {m.last_activity_date ? toJalaliDateTime(m.last_activity_date) : '—'}
-                    </td>
-                  </tr>
-                ))}
-                {team?.members.length === 0 && (
-                  <tr>
-                    <td colSpan={5} className="py-6 text-center text-gray-400">
-                      داده‌ای برای نمایش وجود ندارد
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <h3 className="text-base font-semibold">{fa.dashboard.recent_activities}</h3>
-            <Link to="/activities" className="text-xs text-primary hover:underline">
-              {fa.actions.viewAll}
-            </Link>
-          </CardHeader>
-          <CardContent>
-            {activities.length === 0 ? (
-              <p className="py-8 text-center text-gray-400">{fa.empty.activities}</p>
-            ) : (
-              <ActivityFeed
-                activities={activities}
-                onSelect={(id) => {
-                  setSelectedActivityId(id)
-                  navigate('/activities')
-                }}
-                expandedId={selectedActivityId}
-              />
-            )}
-          </CardContent>
-        </Card>
-      </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card>
@@ -401,6 +354,70 @@ function ManagerDashboard() {
                   </PieChart>
                 </ResponsiveContainer>
               </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <h3 className="text-base font-semibold">{fa.dashboard.team_performance}</h3>
+          </CardHeader>
+          <CardContent className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-gray-500">
+                  <th className="py-2 text-right font-medium">{fa.dashboard.expert}</th>
+                  <th className="py-2 text-right font-medium">{fa.dashboard.active_opps}</th>
+                  <th className="py-2 text-right font-medium">{fa.dashboard.pipeline_col}</th>
+                  <th className="py-2 text-right font-medium">{fa.dashboard.win_rate_col}</th>
+                  <th className="py-2 text-right font-medium">{fa.dashboard.last_activity_col}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {team?.members.map((m) => (
+                  <tr key={m.user_id} className="border-b last:border-0">
+                    <td className="py-2 font-medium">{m.user_name}</td>
+                    <td className="py-2">{toPersianDigits(m.open_count)}</td>
+                    <td className="py-2">{formatCurrencyFaShort(Number(m.pipeline_value))}</td>
+                    <td className="py-2">{formatPercentFa(m.win_rate)}</td>
+                    <td className="py-2 text-gray-500">
+                      {m.last_activity_date ? toJalaliDateTime(m.last_activity_date) : '—'}
+                    </td>
+                  </tr>
+                ))}
+                {team?.members.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="py-6 text-center text-gray-400">
+                      داده‌ای برای نمایش وجود ندارد
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <h3 className="text-base font-semibold">{fa.dashboard.recent_activities}</h3>
+            <Link to="/activities" className="text-xs text-primary hover:underline">
+              {fa.actions.viewAll}
+            </Link>
+          </CardHeader>
+          <CardContent>
+            {activities.length === 0 ? (
+              <p className="py-8 text-center text-gray-400">{fa.empty.activities}</p>
+            ) : (
+              <ActivityFeed
+                activities={activities}
+                onSelect={(id) => {
+                  setSelectedActivityId(id)
+                  navigate('/activities')
+                }}
+                expandedId={selectedActivityId}
+              />
             )}
           </CardContent>
         </Card>

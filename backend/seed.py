@@ -24,12 +24,14 @@ async def seed() -> None:
         manager = User(
             name="مدیر سیستم",
             email="admin@padisaar.com",
+            mobile="09120000001",
             hashed_password=hash_password("admin123"),
             role=UserRole.MANAGER,
         )
         expert = User(
             name="کارشناس فروش",
             email="expert@padisaar.com",
+            mobile="09120000002",
             hashed_password=hash_password("expert123"),
             role=UserRole.EXPERT,
         )

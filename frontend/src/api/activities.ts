@@ -1,5 +1,5 @@
 import api from './axios'
-import type { Activity, ActivityListResponse } from '../types'
+import type { Activity, ActivityListResponse, OverdueActivitiesResponse } from '../types'
 
 export const activitiesApi = {
   list: (params?: Record<string, string | number | undefined>) =>
@@ -9,7 +9,8 @@ export const activitiesApi = {
   update: (id: string, data: Record<string, unknown>) =>
     api.put<Activity>(`/activities/${id}`, data),
   delete: (id: string) => api.delete(`/activities/${id}`),
-  overdueCount: () => api.get<{ count: number }>('/activities/overdue'),
+  overdue: () => api.get<OverdueActivitiesResponse>('/activities/overdue'),
+  overdueCount: () => api.get<{ count: number }>('/activities/overdue/count'),
   completeFollowup: (id: string) =>
     api.put<Activity>(`/activities/${id}/complete-followup`),
   upload: (file: File) => {

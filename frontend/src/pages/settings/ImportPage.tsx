@@ -8,16 +8,29 @@ import { fa } from '@/lib/i18n/fa'
 import { toPersianDigits } from '@/lib/utils/persian'
 import type { ImportRowPreview } from '@/types'
 
-export default function ImportPage() {
+type ImportTab = 'accounts' | 'contacts'
+
+interface ImportWizardProps {
+  tab: ImportTab
+  onReset: () => void
+}
+
+function ImportWizard({ tab, onReset }: ImportWizardProps) {
   const [step, setStep] = useState(1)
   const [preview, setPreview] = useState<ImportRowPreview[]>([])
   const [validCount, setValidCount] = useState(0)
   const [loading, setLoading] = useState(false)
   const [importing, setImporting] = useState(false)
 
+  const isAccounts = tab === 'accounts'
+
   const handleDownloadTemplate = async () => {
     try {
-      await reportsApi.exportAccounts(true)
+      if (isAccounts) {
+        await reportsApi.exportAccounts(true)
+      } else {
+        await reportsApi.exportContacts(true)
+      }
       toast.success('قالب Excel دانلود شد')
       setStep(2)
     } catch {
@@ -30,7 +43,9 @@ export default function ImportPage() {
     if (!file) return
     setLoading(true)
     try {
-      const { data } = await reportsApi.previewImportAccounts(file)
+      const { data } = isAccounts
+        ? await reportsApi.previewImportAccounts(file)
+        : await reportsApi.previewImportContacts(file)
       setPreview(data.rows)
       setValidCount(data.valid_count)
       setStep(3)
@@ -53,11 +68,14 @@ export default function ImportPage() {
     }
     setImporting(true)
     try {
-      const { data } = await reportsApi.confirmImportAccounts(validRecords)
+      const { data } = isAccounts
+        ? await reportsApi.confirmImportAccounts(validRecords)
+        : await reportsApi.confirmImportContacts(validRecords)
       toast.success(fa.settings.importSuccess(data.created_count))
       setStep(1)
       setPreview([])
       setValidCount(0)
+      onReset()
     } catch {
       toast.error(fa.toast.error)
     } finally {
@@ -66,79 +84,138 @@ export default function ImportPage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
-      <Card>
-        <CardContent className="space-y-4 p-6">
-          <div className={step >= 1 ? 'text-primary' : 'text-gray-400'}>
-            <p className="font-medium">{fa.settings.importStep1}</p>
-            <p className="mt-1 text-sm text-gray-500">
-              فایل قالب را دانلود کنید، اطلاعات سازمان‌ها را وارد کنید و ذخیره کنید.
-            </p>
-            <Button variant="outline" className="mt-3" onClick={handleDownloadTemplate}>
-              <Download className="ml-1 h-4 w-4" />
-              {fa.settings.downloadTemplate}
-            </Button>
-          </div>
+    <CardContent className="space-y-4 p-6">
+      <div className={step >= 1 ? 'text-primary' : 'text-gray-400'}>
+        <p className="font-medium">{fa.settings.importStep1}</p>
+        <p className="mt-1 text-sm text-gray-500">
+          {isAccounts
+            ? 'فایل قالب را دانلود کنید، اطلاعات سازمان‌ها را وارد کنید و ذخیره کنید.'
+            : 'فایل قالب را دانلود کنید؛ سازمان‌ها باید از قبل در سیستم ثبت شده باشند.'}
+        </p>
+        <Button variant="outline" className="mt-3" onClick={handleDownloadTemplate}>
+          <Download className="ml-1 h-4 w-4" />
+          {fa.settings.downloadTemplate}
+        </Button>
+      </div>
 
-          <div className={step >= 2 ? 'text-primary' : 'text-gray-400'}>
-            <p className="font-medium">{fa.settings.importStep2}</p>
-            <label className="mt-3 inline-flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-gray-300 px-4 py-3 hover:bg-gray-50">
-              <Upload className="h-4 w-4" />
-              <span>{loading ? fa.actions.loading : fa.settings.uploadFile}</span>
-              <input
-                type="file"
-                accept=".xlsx,.xls"
-                className="hidden"
-                onChange={handleUpload}
-                disabled={loading}
-              />
-            </label>
-          </div>
+      <div className={step >= 2 ? 'text-primary' : 'text-gray-400'}>
+        <p className="font-medium">{fa.settings.importStep2}</p>
+        <label className="mt-3 inline-flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-gray-300 px-4 py-3 hover:bg-gray-50">
+          <Upload className="h-4 w-4" />
+          <span>{loading ? fa.actions.loading : fa.settings.uploadFile}</span>
+          <input
+            type="file"
+            accept=".xlsx,.xls"
+            className="hidden"
+            onChange={handleUpload}
+            disabled={loading}
+          />
+        </label>
+      </div>
 
-          {step >= 3 && preview.length > 0 && (
-            <div>
-              <p className="mb-3 font-medium">{fa.settings.importStep3}</p>
-              <p className="mb-3 text-sm text-gray-600">
-                {toPersianDigits(validCount)} رکورد معتبر ·{' '}
-                {toPersianDigits(preview.length - validCount)} رکورد دارای خطا
-              </p>
-              <div className="max-h-80 overflow-auto rounded border">
-                <table className="w-full text-sm">
-                  <thead className="sticky top-0 bg-slate-50">
-                    <tr>
-                      <th className="px-3 py-2 text-right">ردیف</th>
+      {step >= 3 && preview.length > 0 && (
+        <div>
+          <p className="mb-3 font-medium">{fa.settings.importStep3}</p>
+          <p className="mb-3 text-sm text-gray-600">
+            {toPersianDigits(validCount)} رکورد معتبر ·{' '}
+            {toPersianDigits(preview.length - validCount)} رکورد دارای خطا
+          </p>
+          <div className="max-h-80 overflow-auto rounded border">
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 bg-slate-50">
+                <tr>
+                  <th className="px-3 py-2 text-right">ردیف</th>
+                  {isAccounts ? (
+                    <>
                       <th className="px-3 py-2 text-right">نام سازمان</th>
                       <th className="px-3 py-2 text-right">شناسه ملی</th>
-                      <th className="px-3 py-2 text-right">خطاها</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {preview.map((row) => (
-                      <tr
-                        key={row.row_number}
-                        className={`border-t ${row.valid ? 'bg-green-50/50' : 'bg-red-50/50'}`}
-                      >
-                        <td className="px-3 py-2">{toPersianDigits(row.row_number)}</td>
+                    </>
+                  ) : (
+                    <>
+                      <th className="px-3 py-2 text-right">نام مخاطب</th>
+                      <th className="px-3 py-2 text-right">سازمان</th>
+                      <th className="px-3 py-2 text-right">موبایل</th>
+                    </>
+                  )}
+                  <th className="px-3 py-2 text-right">خطاها</th>
+                </tr>
+              </thead>
+              <tbody>
+                {preview.map((row) => (
+                  <tr
+                    key={row.row_number}
+                    className={`border-t ${row.valid ? 'bg-green-50/50' : 'bg-red-50/50'}`}
+                  >
+                    <td className="px-3 py-2">{toPersianDigits(row.row_number)}</td>
+                    {isAccounts ? (
+                      <>
                         <td className="px-3 py-2">{String(row.record.name ?? '')}</td>
                         <td className="px-3 py-2">{String(row.record.national_id ?? '—')}</td>
-                        <td className="px-3 py-2 text-xs text-red-600">
-                          {row.errors.join(' · ') || '—'}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <Button
-                className="mt-4"
-                onClick={handleConfirm}
-                disabled={importing || validCount === 0}
-              >
-                {importing ? fa.actions.submitting : fa.settings.confirmImport(validCount)}
-              </Button>
-            </div>
-          )}
-        </CardContent>
+                      </>
+                    ) : (
+                      <>
+                        <td className="px-3 py-2">{String(row.record.full_name ?? '')}</td>
+                        <td className="px-3 py-2">{String(row.record.account_name ?? '')}</td>
+                        <td className="px-3 py-2">{String(row.record.mobile ?? '')}</td>
+                      </>
+                    )}
+                    <td className="px-3 py-2 text-xs text-red-600">
+                      {row.errors.join(' · ') || '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <Button
+            className="mt-4"
+            onClick={handleConfirm}
+            disabled={importing || validCount === 0}
+          >
+            {importing ? fa.actions.submitting : fa.settings.confirmImport(validCount)}
+          </Button>
+        </div>
+      )}
+    </CardContent>
+  )
+}
+
+export default function ImportPage() {
+  const [tab, setTab] = useState<ImportTab>('accounts')
+  const [wizardKey, setWizardKey] = useState(0)
+
+  return (
+    <div className="mx-auto max-w-4xl space-y-4">
+      <div className="flex gap-2 border-b">
+        <button
+          type="button"
+          onClick={() => setTab('accounts')}
+          className={`px-4 py-2 text-sm font-medium ${
+            tab === 'accounts'
+              ? 'border-b-2 border-primary text-primary'
+              : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          {fa.settings.importAccounts}
+        </button>
+        <button
+          type="button"
+          onClick={() => setTab('contacts')}
+          className={`px-4 py-2 text-sm font-medium ${
+            tab === 'contacts'
+              ? 'border-b-2 border-primary text-primary'
+              : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          {fa.settings.importContacts}
+        </button>
+      </div>
+      <Card>
+        <ImportWizard
+          key={`${tab}-${wizardKey}`}
+          tab={tab}
+          onReset={() => setWizardKey((k) => k + 1)}
+        />
       </Card>
     </div>
   )

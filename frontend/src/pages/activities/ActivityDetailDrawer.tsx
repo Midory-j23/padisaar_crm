@@ -4,7 +4,7 @@ import { X } from 'lucide-react'
 import { toast } from 'sonner'
 import { activitiesApi } from '@/api/activities'
 import { Button } from '@/components/ui/Button'
-import { activityIcon, attachmentUrl, followUpChipClass } from '@/lib/activityUtils'
+import { activityIcon, attachmentUrl, activityContactLabel, followUpChipClass } from '@/lib/activityUtils'
 import { fa, enumLabel } from '@/lib/i18n/fa'
 import { toJalaliDateTime } from '@/lib/utils/jalali'
 import type { Activity } from '@/types'
@@ -82,8 +82,8 @@ export default function ActivityDetailDrawer({
                 {activity.opportunity_title && (
                   <p><span className="text-gray-500">فرصت:</span> {activity.opportunity_title}</p>
                 )}
-                {activity.contact_name && (
-                  <p><span className="text-gray-500">مخاطب:</span> {activity.contact_name}</p>
+                {activityContactLabel(activity) && (
+                  <p><span className="text-gray-500">مخاطب:</span> {activityContactLabel(activity)}</p>
                 )}
                 <p><span className="text-gray-500">ثبت‌کننده:</span> {activity.created_by_name}</p>
               </div>

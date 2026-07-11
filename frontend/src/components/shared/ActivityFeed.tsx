@@ -1,4 +1,4 @@
-import { activityIcon, followUpChipClass } from '@/lib/activityUtils'
+import { activityIcon, activityContactLabel, followUpChipClass } from '@/lib/activityUtils'
 import { fa, enumLabel } from '@/lib/i18n/fa'
 import { toJalaliDateTime } from '@/lib/utils/jalali'
 import type { Activity } from '@/types'
@@ -35,6 +35,12 @@ export default function ActivityFeed({ activities, onSelect, expandedId }: Activ
                     <>
                       <span className="text-xs text-gray-400">|</span>
                       <span className="text-sm text-gray-500">{a.opportunity_title}</span>
+                    </>
+                  )}
+                  {activityContactLabel(a) && (
+                    <>
+                      <span className="text-xs text-gray-400">|</span>
+                      <span className="text-sm text-gray-500">{activityContactLabel(a)}</span>
                     </>
                   )}
                 </div>

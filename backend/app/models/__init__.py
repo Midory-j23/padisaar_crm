@@ -4,6 +4,7 @@ from app.models.audit_log import AuditLog
 from app.models.contact import Contact
 from app.models.notification import Notification
 from app.models.opportunity import Opportunity, OpportunityStageHistory
+from app.models.login_otp import LoginOtp
 from app.models.user import User
 from app.models.win_loss import WinLossAnalysis
 
@@ -17,4 +18,5 @@ __all__ = [
     "WinLossAnalysis",
     "AuditLog",
     "Notification",
+    "LoginOtp",
 ]

@@ -53,21 +53,24 @@ export default function ActivitiesPage() {
   const fetchActivities = useCallback(async () => {
     setLoading(true)
     try {
-      const { data } = await activitiesApi.list({
-        page,
-        per_page: 20,
-        activity_type: activityType || undefined,
-        account_id: accountId || undefined,
-        assigned_to: assignedTo || undefined,
-        from_date: fromDate ? jalaliStringToISO(fromDate) ?? undefined : undefined,
-        to_date: toDate ? jalaliStringToISO(toDate, true) ?? undefined : undefined,
-      })
-      let items = data.items
       if (showOverdueOnly) {
-        items = items.filter((a) => a.is_follow_up_overdue)
+        const { data } = await activitiesApi.overdue()
+        setActivities(data.items)
+        setTotal(data.count)
+        setOverdueCount(data.count)
+      } else {
+        const { data } = await activitiesApi.list({
+          page,
+          per_page: 20,
+          activity_type: activityType || undefined,
+          account_id: accountId || undefined,
+          assigned_to: assignedTo || undefined,
+          from_date: fromDate ? jalaliStringToISO(fromDate) ?? undefined : undefined,
+          to_date: toDate ? jalaliStringToISO(toDate, true) ?? undefined : undefined,
+        })
+        setActivities(data.items)
+        setTotal(data.total)
       }
-      setActivities(items)
-      setTotal(data.total)
     } catch {
       toast.error(fa.toast.error)
     } finally {

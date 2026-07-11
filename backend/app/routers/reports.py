@@ -33,6 +33,15 @@ def _excel_response(buffer, filename: str) -> StreamingResponse:
     )
 
 
+def _pdf_response(buffer, filename: str) -> StreamingResponse:
+    encoded = quote(filename)
+    return StreamingResponse(
+        buffer,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{encoded}"},
+    )
+
+
 @router.get("/opportunities")
 async def report_opportunities(
     stage: SalesStage | None = Query(None),
@@ -142,6 +151,75 @@ async def confirm_import_accounts(
         return await reports_service.confirm_import_accounts(db, current_user, body.records)
     except ServiceError as e:
         raise_http(e)
+
+
+@router.post("/import/contacts/preview", response_model=ImportPreviewResponse)
+async def preview_import_contacts(
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_manager),
+):
+    try:
+        content = await file.read()
+        return await reports_service.preview_import_contacts(db, content)
+    except ServiceError as e:
+        raise_http(e)
+
+
+@router.post("/import/contacts/confirm", response_model=ImportConfirmResponse)
+async def confirm_import_contacts(
+    body: ImportConfirmRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_manager),
+):
+    try:
+        return await reports_service.confirm_import_contacts(db, current_user, body.records)
+    except ServiceError as e:
+        raise_http(e)
+
+
+@router.get("/export/pdf/opportunities")
+async def export_opportunities_pdf(
+    stage: SalesStage | None = Query(None),
+    account_id: str | None = Query(None),
+    assigned_to_id: str | None = Query(None),
+    search: str | None = Query(None),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_manager),
+):
+    buffer = await reports_service.export_opportunities_pdf(
+        db,
+        current_user,
+        stage=stage,
+        account_id=account_id,
+        assigned_to_id=assigned_to_id,
+        search=search,
+    )
+    return _pdf_response(buffer, "opportunities_report.pdf")
+
+
+@router.get("/export/pdf/activities")
+async def export_activities_pdf(
+    account_id: str | None = Query(None),
+    opportunity_id: str | None = Query(None),
+    activity_type: ActivityType | None = Query(None),
+    assigned_to: str | None = Query(None),
+    from_date: datetime | None = Query(None),
+    to_date: datetime | None = Query(None),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_manager),
+):
+    buffer = await reports_service.export_activities_pdf(
+        db,
+        current_user,
+        account_id=account_id,
+        opportunity_id=opportunity_id,
+        activity_type=activity_type,
+        assigned_to=assigned_to,
+        from_date=from_date,
+        to_date=to_date,
+    )
+    return _pdf_response(buffer, "activities_report.pdf")
 
 
 @router.get("/audit-log", response_model=AuditLogListResponse)

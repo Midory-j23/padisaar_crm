@@ -19,6 +19,7 @@ export default function ActivitiesReportPage() {
   const [fromDate, setFromDate] = useState('')
   const [toDate, setToDate] = useState('')
   const [exporting, setExporting] = useState(false)
+  const [exportingPdf, setExportingPdf] = useState(false)
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -52,6 +53,22 @@ export default function ActivitiesReportPage() {
     }
   }
 
+  const handleExportPdf = async () => {
+    setExportingPdf(true)
+    try {
+      await reportsApi.exportActivitiesPdf({
+        activity_type: activityType || undefined,
+        from_date: fromDate ? jalaliStringToISO(fromDate) ?? undefined : undefined,
+        to_date: toDate ? jalaliStringToISO(toDate, true) ?? undefined : undefined,
+      })
+      toast.success(fa.reports.exportPdfSuccess)
+    } catch {
+      toast.error(fa.toast.error)
+    } finally {
+      setExportingPdf(false)
+    }
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -73,10 +90,16 @@ export default function ActivitiesReportPage() {
             }}
           />
         </div>
-        <Button variant="outline" onClick={handleExport} disabled={exporting}>
-          <Download className="ml-1 h-4 w-4" />
-          {fa.actions.export}
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handleExport} disabled={exporting}>
+            <Download className="ml-1 h-4 w-4" />
+            {fa.actions.export}
+          </Button>
+          <Button variant="outline" onClick={handleExportPdf} disabled={exportingPdf}>
+            <Download className="ml-1 h-4 w-4" />
+            {fa.actions.exportPdf}
+          </Button>
+        </div>
       </div>
 
       <Card>

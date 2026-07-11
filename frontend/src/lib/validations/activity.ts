@@ -16,7 +16,7 @@ const optionalJalaliDate = z
 export const activitySchema = z.object({
   account_id: z.string().min(1, fa.validation.required),
   opportunity_id: z.string().optional().or(z.literal('')),
-  contact_id: z.string().optional().or(z.literal('')),
+  contact_ids: z.array(z.string()),
   activity_type: z.string().min(1, fa.validation.required),
   activity_date: jalaliDate,
   activity_time: z.string().min(1, fa.validation.required),

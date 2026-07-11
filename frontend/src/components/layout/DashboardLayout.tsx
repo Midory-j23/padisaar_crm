@@ -3,6 +3,7 @@ import { Outlet, useLocation } from 'react-router-dom'
 import { notificationsApi } from '@/api/notifications'
 import Header from './Header'
 import Sidebar from './Sidebar'
+import AppFooter from './AppFooter'
 import ActivityFab from '@/components/shared/ActivityFab'
 import { fa } from '@/lib/i18n/fa'
 import { usePageTitle } from '@/hooks/usePageTitle'
@@ -59,15 +60,16 @@ export default function DashboardLayout() {
   return (
     <div className="min-h-screen bg-slate-50">
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      <div className="lg:mr-64">
+      <div className="flex min-h-screen flex-col lg:mr-64">
         <Header
           title={pageInfo.title}
           breadcrumb={pageInfo.breadcrumb}
           onMenuClick={() => setSidebarOpen(true)}
         />
-        <main className="p-4 lg:p-6">
+        <main className="flex-1 p-4 lg:p-6">
           <Outlet />
         </main>
+        <AppFooter />
       </div>
       <ActivityFab />
     </div>

@@ -8,6 +8,7 @@ from app.models.activity import Activity
 from app.models.notification import Notification, NotificationType
 from app.models.opportunity import Opportunity, SalesStage
 from app.models.user import User, UserRole
+from app.services.auth_service import DEFAULT_NOTIFICATION_PREFS
 from app.schemas.notification import NotificationResponse
 from app.schemas.opportunity import CLOSED_STAGES
 from app.services.exceptions import ForbiddenError, NotFoundError
@@ -37,18 +38,32 @@ async def mark_entity_notifications_read(
         notification.is_read = True
 
 
+def _pref_enabled(user: User, ntype: NotificationType) -> bool:
+    prefs = {**DEFAULT_NOTIFICATION_PREFS, **(user.notification_prefs or {})}
+    return prefs.get(ntype.value, True)
+
+
 async def create_notification_if_not_exists(
     db: AsyncSession,
-    user_id: str,
+    user_or_id: User | str,
     ntype: NotificationType,
     entity_type: str,
     entity_id: str,
     title: str,
     message: str,
 ) -> None:
+    if isinstance(user_or_id, str):
+        result = await db.execute(select(User).where(User.id == user_or_id))
+        user = result.scalar_one_or_none()
+        if not user:
+            return
+    else:
+        user = user_or_id
+    if not _pref_enabled(user, ntype):
+        return
     existing = await db.execute(
         select(Notification).where(
-            Notification.user_id == user_id,
+            Notification.user_id == user.id,
             Notification.type == ntype,
             Notification.entity_id == entity_id,
             Notification.is_read.is_(False),
@@ -57,7 +72,7 @@ async def create_notification_if_not_exists(
     if not existing.scalar_one_or_none():
         db.add(
             Notification(
-                user_id=user_id,
+                user_id=user.id,
                 type=ntype,
                 entity_type=entity_type,
                 entity_id=entity_id,
@@ -88,7 +103,7 @@ async def generate_notifications(db: AsyncSession, user: User) -> dict:
         account_name = act.account.name if act.account else "سازمان"
         await create_notification_if_not_exists(
             db,
-            user.id,
+            user,
             NotificationType.OVERDUE_FOLLOWUP,
             "Activity",
             act.id,
@@ -111,7 +126,7 @@ async def generate_notifications(db: AsyncSession, user: User) -> dict:
         account_name = act.account.name if act.account else "سازمان"
         await create_notification_if_not_exists(
             db,
-            user.id,
+            user,
             NotificationType.UPCOMING_FOLLOWUP,
             "Activity",
             act.id,
@@ -136,7 +151,7 @@ async def generate_notifications(db: AsyncSession, user: User) -> dict:
     for opp in at_risk_result.scalars().all():
         await create_notification_if_not_exists(
             db,
-            user.id,
+            user,
             NotificationType.AT_RISK_OPPORTUNITY,
             "Opportunity",
             opp.id,
@@ -162,7 +177,7 @@ async def generate_notifications(db: AsyncSession, user: User) -> dict:
             continue
         await create_notification_if_not_exists(
             db,
-            user.id,
+            user,
             NotificationType.PENDING_WIN_LOSS,
             "Opportunity",
             opp.id,
@@ -180,7 +195,7 @@ async def generate_notifications(db: AsyncSession, user: User) -> dict:
         for opp in assignment_result.scalars().all():
             await create_notification_if_not_exists(
                 db,
-                user.id,
+                user,
                 NotificationType.NEW_ASSIGNMENT,
                 "Opportunity",
                 opp.id,

@@ -14,6 +14,20 @@ class Settings(BaseSettings):
         "http://127.0.0.1:5174"
     )
 
+    # SMS / OTP login
+    SMS_PROVIDER: str = "console"  # console | kavenegar | http
+    SMS_API_KEY: str = ""
+    SMS_SENDER: str = ""
+    SMS_GATEWAY_URL: str = ""
+    SMS_GATEWAY_API_KEY: str = ""
+    SMS_GATEWAY_TIMEOUT_SECONDS: float = 5.0
+    SMS_OTP_TEMPLATE: str = "کد ورود پدیسار CRM: {code}\nاعتبار: {minutes} دقیقه"
+    SMS_DEBUG_RETURN_CODE: bool = True
+    OTP_LENGTH: int = 6
+    OTP_EXPIRE_MINUTES: int = 5
+    OTP_RESEND_COOLDOWN_SECONDS: int = 60
+    OTP_MAX_ATTEMPTS: int = 5
+
     model_config = SettingsConfigDict(env_file=".env")
 
     @property

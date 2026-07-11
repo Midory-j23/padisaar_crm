@@ -3,10 +3,20 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.audit_log import AuditAction
 from app.models.user import User
-from app.schemas.user import ChangePasswordRequest, LoginRequest
+from app.schemas.user import ChangePasswordRequest, LoginRequest, NotificationPrefsUpdate
 from app.services.exceptions import BadRequestError, UnauthorizedError
 from app.utils.audit import log_audit
 from app.utils.security import create_access_token, hash_password, verify_password
+
+
+DEFAULT_NOTIFICATION_PREFS = {
+    "OVERDUE_FOLLOWUP": True,
+    "UPCOMING_FOLLOWUP": True,
+    "AT_RISK_OPPORTUNITY": True,
+    "PENDING_WIN_LOSS": True,
+    "STAGE_CHANGE": True,
+    "NEW_ASSIGNMENT": True,
+}
 
 
 def user_to_dict(user: User) -> dict:
@@ -14,7 +24,9 @@ def user_to_dict(user: User) -> dict:
         "id": user.id,
         "name": user.name,
         "email": user.email,
+        "mobile": user.mobile,
         "role": user.role.value,
+        "notification_prefs": {**DEFAULT_NOTIFICATION_PREFS, **(user.notification_prefs or {})},
     }
 
 
@@ -57,3 +69,19 @@ async def list_active_users(db: AsyncSession) -> list[dict]:
     )
     users = result.scalars().all()
     return [user_to_dict(u) for u in users]
+
+
+async def get_notification_prefs(user: User) -> dict:
+    return {**DEFAULT_NOTIFICATION_PREFS, **(user.notification_prefs or {})}
+
+
+async def update_notification_prefs(
+    db: AsyncSession, user: User, body: NotificationPrefsUpdate
+) -> dict:
+    prefs = {**DEFAULT_NOTIFICATION_PREFS, **(user.notification_prefs or {})}
+    for key, value in body.model_dump(exclude_unset=True).items():
+        prefs[key] = value
+    user.notification_prefs = prefs
+    await db.commit()
+    await db.refresh(user)
+    return prefs

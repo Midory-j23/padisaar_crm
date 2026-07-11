@@ -2,10 +2,17 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Enum as SAEnum, ForeignKey, String, Text
+from sqlalchemy import Boolean, Column, DateTime, Enum as SAEnum, ForeignKey, String, Table, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
+
+activity_contacts = Table(
+    "activity_contacts",
+    Base.metadata,
+    Column("activity_id", String, ForeignKey("activities.id", ondelete="CASCADE"), primary_key=True),
+    Column("contact_id", String, ForeignKey("contacts.id", ondelete="CASCADE"), primary_key=True),
+)
 
 
 class ActivityType(str, enum.Enum):
@@ -39,5 +46,6 @@ class Activity(Base):
 
     account = relationship("Account", back_populates="activities")
     opportunity = relationship("Opportunity", back_populates="activities")
-    contact = relationship("Contact")
+    contact = relationship("Contact", foreign_keys=[contact_id])
+    contacts = relationship("Contact", secondary=activity_contacts)
     created_by = relationship("User", foreign_keys=[created_by_id])

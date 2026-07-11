@@ -19,6 +19,7 @@ class User(Base):
     id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     name: Mapped[str] = mapped_column(String, nullable=False)
     email: Mapped[str] = mapped_column(String, unique=True, nullable=False)
+    mobile: Mapped[str | None] = mapped_column(String, unique=True, nullable=True, index=True)
     hashed_password: Mapped[str] = mapped_column(String, nullable=False)
     role: Mapped[UserRole] = mapped_column(SAEnum(UserRole), default=UserRole.EXPERT)
     is_active: Mapped[bool] = mapped_column(default=True)

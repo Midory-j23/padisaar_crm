@@ -4,7 +4,18 @@ export interface User {
   id: string
   name: string
   email: string
+  mobile?: string | null
   role: UserRole
+  notification_prefs?: NotificationPrefs
+}
+
+export interface NotificationPrefs {
+  OVERDUE_FOLLOWUP: boolean
+  UPCOMING_FOLLOWUP: boolean
+  AT_RISK_OPPORTUNITY: boolean
+  PENDING_WIN_LOSS: boolean
+  STAGE_CHANGE: boolean
+  NEW_ASSIGNMENT: boolean
 }
 
 export type Industry =
@@ -209,6 +220,8 @@ export interface Activity {
   opportunity_title?: string | null
   contact_id?: string | null
   contact_name?: string | null
+  contact_ids?: string[]
+  contact_names?: string[]
   activity_type: ActivityType
   activity_date: string
   meeting_notes?: string | null
@@ -228,6 +241,11 @@ export interface ActivityListResponse {
   total: number
   page: number
   per_page: number
+}
+
+export interface OverdueActivitiesResponse {
+  count: number
+  items: Activity[]
 }
 
 export interface DashboardKpis {

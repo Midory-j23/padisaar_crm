@@ -11,6 +11,7 @@ class ActivityCreate(BaseModel):
     account_id: str
     opportunity_id: Optional[str] = None
     contact_id: Optional[str] = None
+    contact_ids: list[str] = []
     activity_type: ActivityType
     activity_date: datetime
     meeting_notes: Optional[str] = None
@@ -29,6 +30,7 @@ class ActivityUpdate(BaseModel):
     account_id: Optional[str] = None
     opportunity_id: Optional[str] = None
     contact_id: Optional[str] = None
+    contact_ids: Optional[list[str]] = None
     activity_type: Optional[ActivityType] = None
     activity_date: Optional[datetime] = None
     meeting_notes: Optional[str] = None
@@ -51,6 +53,8 @@ class ActivityResponse(BaseModel):
     opportunity_title: Optional[str] = None
     contact_id: Optional[str] = None
     contact_name: Optional[str] = None
+    contact_ids: list[str] = []
+    contact_names: list[str] = []
     activity_type: ActivityType
     activity_date: datetime
     meeting_notes: Optional[str] = None
@@ -76,3 +80,8 @@ class ActivityListResponse(BaseModel):
 
 class OverdueCountResponse(BaseModel):
     count: int
+
+
+class OverdueActivitiesResponse(BaseModel):
+    count: int
+    items: list[ActivityResponse]

@@ -4,13 +4,14 @@ from datetime import datetime
 
 import aiofiles
 from fastapi import UploadFile
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.config import settings
 from app.models.activity import Activity, ActivityType
 from app.models.audit_log import AuditAction
+from app.models.contact import Contact
 from app.models.user import User, UserRole
 from app.schemas.activity import ActivityCreate, ActivityResponse, ActivityUpdate
 from app.services.access import ensure_account_access
@@ -30,15 +31,35 @@ def is_follow_up_overdue(activity: Activity) -> bool:
     return activity.follow_up_date.replace(tzinfo=None) < datetime.utcnow()
 
 
+def _contact_ids_from_activity(activity: Activity) -> list[str]:
+    if activity.contacts:
+        return [c.id for c in activity.contacts]
+    if activity.contact_id:
+        return [activity.contact_id]
+    return []
+
+
+def _contact_names_from_activity(activity: Activity) -> list[str]:
+    if activity.contacts:
+        return [c.full_name for c in activity.contacts]
+    if activity.contact and activity.contact.full_name:
+        return [activity.contact.full_name]
+    return []
+
+
 def to_response(activity: Activity) -> ActivityResponse:
+    contact_ids = _contact_ids_from_activity(activity)
+    contact_names = _contact_names_from_activity(activity)
     return ActivityResponse(
         id=activity.id,
         account_id=activity.account_id,
         account_name=activity.account.name if activity.account else None,
         opportunity_id=activity.opportunity_id,
         opportunity_title=activity.opportunity.title if activity.opportunity else None,
-        contact_id=activity.contact_id,
-        contact_name=activity.contact.full_name if activity.contact else None,
+        contact_id=contact_ids[0] if contact_ids else activity.contact_id,
+        contact_name=contact_names[0] if contact_names else None,
+        contact_ids=contact_ids,
+        contact_names=contact_names,
         activity_type=activity.activity_type,
         activity_date=activity.activity_date,
         meeting_notes=activity.meeting_notes,
@@ -59,6 +80,7 @@ def activity_query():
         selectinload(Activity.account),
         selectinload(Activity.opportunity),
         selectinload(Activity.contact),
+        selectinload(Activity.contacts),
         selectinload(Activity.created_by),
     )
 
@@ -69,6 +91,52 @@ def apply_ownership(query, current_user: User):
 
         query = query.join(Account).where(Account.account_manager_id == current_user.id)
     return query
+
+
+def _overdue_base_query(current_user: User):
+    query = apply_ownership(activity_query(), current_user).where(
+        Activity.follow_up_date < datetime.utcnow(),
+        Activity.follow_up_completed.is_(False),
+    )
+    if current_user.role == UserRole.EXPERT:
+        query = query.where(Activity.created_by_id == current_user.id)
+    return query
+
+
+async def _validate_contact_ids(
+    db: AsyncSession, account_id: str, contact_ids: list[str], current_user: User
+) -> list[Contact]:
+    if not contact_ids:
+        return []
+    result = await db.execute(select(Contact).where(Contact.id.in_(contact_ids)))
+    contacts = result.scalars().all()
+    if len(contacts) != len(set(contact_ids)):
+        raise BadRequestError("یک یا چند مخاطب انتخاب‌شده یافت نشد")
+    for contact in contacts:
+        if contact.account_id != account_id:
+            raise BadRequestError("مخاطب باید متعلق به همان سازمان باشد")
+        if current_user.role == UserRole.EXPERT:
+            from app.models.account import Account
+
+            acc = await db.get(Account, account_id)
+            if not acc or acc.account_manager_id != current_user.id:
+                raise ForbiddenError()
+    return contacts
+
+
+def _resolve_contact_ids(body: ActivityCreate | ActivityUpdate, existing: Activity | None = None) -> list[str]:
+    if isinstance(body, ActivityUpdate):
+        if body.contact_ids is not None:
+            return body.contact_ids
+        if body.contact_id is not None:
+            return [body.contact_id] if body.contact_id else []
+        return _contact_ids_from_activity(existing) if existing else []
+    ids = list(body.contact_ids or [])
+    if body.contact_id and body.contact_id not in ids:
+        ids.insert(0, body.contact_id)
+    elif not ids and body.contact_id:
+        ids = [body.contact_id]
+    return ids
 
 
 async def _get_activity(db: AsyncSession, activity_id: str, current_user: User) -> Activity:
@@ -82,14 +150,20 @@ async def _get_activity(db: AsyncSession, activity_id: str, current_user: User) 
 
 
 async def overdue_count(db: AsyncSession, current_user: User) -> dict:
-    query = apply_ownership(activity_query(), current_user).where(
-        Activity.follow_up_date < datetime.utcnow(),
-        Activity.follow_up_completed.is_(False),
-    )
-    if current_user.role == UserRole.EXPERT:
-        query = query.where(Activity.created_by_id == current_user.id)
+    query = _overdue_base_query(current_user)
     count = (await db.execute(select(func.count()).select_from(query.subquery()))).scalar() or 0
     return {"count": count}
+
+
+async def list_overdue(
+    db: AsyncSession, current_user: User, *, limit: int = 50
+) -> dict:
+    count_result = await overdue_count(db, current_user)
+    query = _overdue_base_query(current_user).order_by(Activity.follow_up_date.asc()).limit(limit)
+    result = await db.execute(query)
+    activities = result.scalars().unique().all()
+    items = [to_response(a) for a in activities]
+    return {"count": count_result["count"], "items": items}
 
 
 async def upload_attachment(file: UploadFile) -> dict:
@@ -134,7 +208,12 @@ async def list_activities(
     if opportunity_id:
         query = query.where(Activity.opportunity_id == opportunity_id)
     if contact_id:
-        query = query.where(Activity.contact_id == contact_id)
+        query = query.where(
+            or_(
+                Activity.contact_id == contact_id,
+                Activity.contacts.any(Contact.id == contact_id),
+            )
+        )
     if activity_type:
         query = query.where(Activity.activity_type == activity_type)
     if assigned_to:
@@ -169,11 +248,17 @@ async def create_activity(
     db: AsyncSession, current_user: User, body: ActivityCreate
 ) -> ActivityResponse:
     await ensure_account_access(db, body.account_id, current_user)
-    data = body.model_dump()
+    contact_ids = _resolve_contact_ids(body)
+    contacts = await _validate_contact_ids(db, body.account_id, contact_ids, current_user)
+
+    data = body.model_dump(exclude={"contact_ids"})
+    data["contact_id"] = contact_ids[0] if contact_ids else None
     activity = Activity(**data, created_by_id=current_user.id)
+    activity.contacts = contacts
     db.add(activity)
     await db.flush()
-    await log_audit(db, "Activity", activity.id, AuditAction.CREATE, current_user.id, data)
+    audit_data = {**data, "contact_ids": contact_ids}
+    await log_audit(db, "Activity", activity.id, AuditAction.CREATE, current_user.id, audit_data)
     await db.commit()
 
     result = await db.execute(activity_query().where(Activity.id == activity.id))
@@ -189,7 +274,14 @@ async def update_activity(
     db: AsyncSession, current_user: User, activity_id: str, body: ActivityUpdate
 ) -> ActivityResponse:
     activity = await _get_activity(db, activity_id, current_user)
-    updates = body.model_dump(exclude_unset=True)
+    updates = body.model_dump(exclude_unset=True, exclude={"contact_ids"})
+    account_id = updates.get("account_id", activity.account_id)
+
+    contact_ids = _resolve_contact_ids(body, activity)
+    if body.contact_ids is not None or body.contact_id is not None:
+        contacts = await _validate_contact_ids(db, account_id, contact_ids, current_user)
+        activity.contacts = contacts
+        updates["contact_id"] = contact_ids[0] if contact_ids else None
 
     if "account_id" in updates and updates["account_id"]:
         await ensure_account_access(db, updates["account_id"], current_user)
@@ -197,6 +289,10 @@ async def update_activity(
     old_data = {c.name: getattr(activity, c.name) for c in activity.__table__.columns}
     for field, value in updates.items():
         setattr(activity, field, value)
+
+    audit_after = {**updates}
+    if body.contact_ids is not None or body.contact_id is not None:
+        audit_after["contact_ids"] = contact_ids
 
     await log_audit(
         db,
@@ -206,12 +302,12 @@ async def update_activity(
         current_user.id,
         {
             "before": old_data,
-            "after": updates,
+            "after": audit_after,
             "title": activity.meeting_notes[:80] if activity.meeting_notes else activity.activity_type.value,
         },
     )
     await db.commit()
-    await db.refresh(activity, ["account", "opportunity", "contact", "created_by"])
+    await db.refresh(activity, ["account", "opportunity", "contact", "contacts", "created_by"])
     return to_response(activity)
 
 
@@ -240,7 +336,7 @@ async def complete_followup(
         [NotificationType.OVERDUE_FOLLOWUP, NotificationType.UPCOMING_FOLLOWUP],
     )
     await db.commit()
-    await db.refresh(activity, ["account", "opportunity", "contact", "created_by"])
+    await db.refresh(activity, ["account", "opportunity", "contact", "contacts", "created_by"])
     return to_response(activity)
 
 

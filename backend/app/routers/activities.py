@@ -12,6 +12,7 @@ from app.schemas.activity import (
     ActivityListResponse,
     ActivityResponse,
     ActivityUpdate,
+    OverdueActivitiesResponse,
     OverdueCountResponse,
 )
 from app.services import activity_service
@@ -21,7 +22,16 @@ from app.services.http import raise_http
 router = APIRouter()
 
 
-@router.get("/overdue", response_model=OverdueCountResponse)
+@router.get("/overdue", response_model=OverdueActivitiesResponse)
+async def list_overdue_activities(
+    limit: int = Query(50, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return await activity_service.list_overdue(db, current_user, limit=limit)
+
+
+@router.get("/overdue/count", response_model=OverdueCountResponse)
 async def overdue_count(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),

@@ -73,7 +73,28 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:5173 — login with `admin@padisaar.com` / `admin123`
+Open http://localhost:5173 — login with:
+
+- **Email:** `admin@padisaar.com` / `admin123`
+- **Phone (SMS OTP):** `09120000001` — request code on login page (dev mode shows code in toast)
+- **Email:** `expert@padisaar.com` / `expert123`
+- **Phone (SMS OTP):** `09120000002`
+
+### SMS gateway (phone OTP login)
+
+Configure in `backend/.env`:
+
+| Variable | Description |
+|----------|-------------|
+| `SMS_PROVIDER` | `console` (dev), `kavenegar`, or `http` (generic REST) |
+| `SMS_API_KEY` | Kavenegar API key |
+| `SMS_SENDER` | Sender line number |
+| `SMS_GATEWAY_URL` | e.g. `http://192.168.102.104/sms/send` |
+| `SMS_GATEWAY_API_KEY` | Sent as `X-API-KEY` header |
+| `SMS_GATEWAY_TIMEOUT_SECONDS` | Request timeout (default `5`) |
+| `SMS_DEBUG_RETURN_CODE` | `true` in dev — returns OTP in API (never use in production) |
+
+Run migration after pull: `.\venv\Scripts\alembic upgrade head`
 
 **Tip:** use `http://localhost:5173` (not `127.0.0.1`) in the browser. In dev, API calls go through the Vite proxy (`/api` → backend) so CORS issues are avoided.
 
@@ -96,16 +117,14 @@ npm run dev
 
 | Phase | Module | Status | Notes |
 |-------|--------|--------|-------|
-| 1 | Foundation (Backend + Frontend + DB) | **Done** | `services/` layer + `schemas/user.py`; notifications/reports routers still stubs |
-| 2 | Auth & RBAC (JWT) | **Done** | No `useAuth.ts` hook; change-password works |
+| 1 | Foundation (Backend + Frontend + DB) | **Done** | FastAPI + React + PostgreSQL + Alembic |
+| 2 | Auth & RBAC (JWT) | **Done** | `useAuth` hook, change-password, notification prefs API |
 | 3 | Accounts (سازمان‌ها) | **Done** | |
 | 4 | Contacts (مخاطبان) | **Done** | |
 | 5 | Opportunities + Kanban | **Done** | |
-| 6 | Activities (فعالیت‌ها) | **Partial** | `/overdue` returns count only; single contact; no searchable account picker |
+| 6 | Activities (فعالیت‌ها) | **Done** | Multi-contact, overdue list, searchable account, opp prompt |
 | 7 | Win/Loss (تحلیل برد/باخت) | **Done** | |
-| 8 | Dashboard KPI + Recharts | **Done** | Minor: no funnel conversion labels between bars |
-| 9 | Notifications & polling | **Done** | Bell dropdown, generate on login, 2-min polling |
-| 10 | Reports, Export, Import, Users | **Done** | Excel export/import, audit log, user management, settings layout |
-| 11 | Full i18n + RTL + Jalali | **Done** | Range picker, 404/401 pages, page titles, print CSS, fa.ts complete |
-
-See conversation/spec audit for the full gap list. Next recommended work: **Phase 9 → 10 → 11** (in order).
+| 8 | Dashboard KPI + Recharts | **Done** | Funnel conversion labels between stages |
+| 9 | Notifications & polling | **Done** | Bell dropdown, prefs UI, respect user preferences |
+| 10 | Reports, Export, Import, Users | **Done** | Excel + PDF export, accounts/contacts import, audit log |
+| 11 | Full i18n + RTL + Jalali | **Done** | `fa.ts`, `DataTable`, `EmptyState`, Jalali dates |

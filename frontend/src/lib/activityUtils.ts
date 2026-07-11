@@ -10,6 +10,14 @@ export function activityIcon(type: string): string {
   return ACTIVITY_ICONS[type] ?? '📋'
 }
 
+export function activityContactLabel(activity: {
+  contact_name?: string | null
+  contact_names?: string[]
+}): string | null {
+  if (activity.contact_names?.length) return activity.contact_names.join('، ')
+  return activity.contact_name ?? null
+}
+
 export function followUpChipClass(activity: {
   follow_up_date?: string | null
   follow_up_completed: boolean

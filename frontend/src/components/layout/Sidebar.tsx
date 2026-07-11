@@ -12,6 +12,7 @@ import {
 import { cn } from '@/lib/utils'
 import { fa } from '@/lib/i18n/fa'
 import { usePermissions } from '@/hooks/usePermissions'
+import { APP_VERSION } from '@/lib/version'
 
 const navItems = [
   { to: '/', label: fa.nav.dashboard, icon: LayoutDashboard, end: true },
@@ -43,8 +44,14 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
           open ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'
         )}
       >
-        <div className="flex items-center justify-between border-b border-white/10 px-6 py-5">
-          <span className="text-xl font-bold">پدیسار CRM</span>
+        <div className="flex items-center justify-between border-b border-white/10 px-4 py-4">
+          <NavLink to="/" onClick={onClose} className="flex min-w-0 flex-1 items-center">
+            <img
+              src="/padisar-logo.png"
+              alt="Padisar Informatics"
+              className="h-11 w-auto max-w-full object-contain object-right"
+            />
+          </NavLink>
           <button type="button" className="lg:hidden" onClick={onClose}>
             <X className="h-5 w-5" />
           </button>
@@ -72,6 +79,12 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
               </NavLink>
             ))}
         </nav>
+        <div
+          data-print-hide
+          className="border-t border-white/10 px-4 py-3 text-center text-xs text-white/60"
+        >
+          {fa.app.versionLabel(APP_VERSION)}
+        </div>
       </aside>
     </>
   )
