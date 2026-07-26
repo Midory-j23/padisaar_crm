@@ -11,7 +11,9 @@ class AccountCreate(BaseModel):
     industry: Optional[Industry] = None
     size: Optional[OrgSize] = None
     priority_level: Optional[PriorityLevel] = None
-    location: Optional[str] = None
+    province: Optional[str] = None
+    city: Optional[str] = None
+    address: Optional[str] = None
     website: Optional[str] = None
     relationship_status: Optional[RelationshipStatus] = None
     account_manager_id: Optional[str] = None
@@ -30,7 +32,9 @@ class AccountUpdate(BaseModel):
     industry: Optional[Industry] = None
     size: Optional[OrgSize] = None
     priority_level: Optional[PriorityLevel] = None
-    location: Optional[str] = None
+    province: Optional[str] = None
+    city: Optional[str] = None
+    address: Optional[str] = None
     website: Optional[str] = None
     relationship_status: Optional[RelationshipStatus] = None
     account_manager_id: Optional[str] = None
@@ -50,7 +54,9 @@ class AccountResponse(BaseModel):
     industry: Optional[Industry] = None
     size: Optional[OrgSize] = None
     priority_level: Optional[PriorityLevel] = None
-    location: Optional[str] = None
+    province: Optional[str] = None
+    city: Optional[str] = None
+    address: Optional[str] = None
     website: Optional[str] = None
     relationship_status: Optional[RelationshipStatus] = None
     account_manager_id: Optional[str] = None

@@ -84,7 +84,9 @@ export default function AccountDetailPage() {
         </Badge>
       ) : '—',
     },
-    { label: fa.accounts.location, value: account.location ?? '—' },
+    { label: fa.accounts.province, value: account.province ?? '—' },
+    { label: fa.accounts.city, value: account.city ?? '—' },
+    { label: fa.accounts.address, value: account.address ?? '—' },
     { label: fa.accounts.website, value: account.website ?? '—' },
     { label: fa.accounts.manager, value: account.account_manager_name ?? '—' },
     { label: fa.accounts.createdAt, value: toJalaliDateTime(account.created_at) },

@@ -80,14 +80,18 @@ export default function AccountContactsTab({ accountId }: AccountContactsTabProp
                   <td className="px-4 py-3 font-medium">{c.full_name}</td>
                   <td className="px-4 py-3">{c.job_title ?? '—'}</td>
                   <td className="px-4 py-3">
-                    <a
-                      href={`tel:${c.mobile}`}
-                      className="text-primary hover:underline"
-                      dir="ltr"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {formatPhoneFa(c.mobile)}
-                    </a>
+                    {c.mobile ? (
+                      <a
+                        href={`tel:${c.mobile}`}
+                        className="text-primary hover:underline"
+                        dir="ltr"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {formatPhoneFa(c.mobile)}
+                      </a>
+                    ) : (
+                      '—'
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     {c.influence_level ? (

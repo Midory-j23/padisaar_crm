@@ -70,7 +70,7 @@ export default function ContactFormModal({
         full_name: contact.full_name,
         job_title: contact.job_title ?? '',
         department: contact.department ?? '',
-        mobile: contact.mobile,
+        mobile: contact.mobile ?? '',
         direct_line: contact.direct_line ?? '',
         email: contact.email ?? '',
         influence_level: contact.influence_level ?? '',
@@ -85,12 +85,17 @@ export default function ContactFormModal({
   const onSubmit = async (values: ContactFormValues) => {
     setSubmitting(true)
     setMobileError('')
-    const payload = Object.fromEntries(
+    const mobileDigits = toWesternDigits(values.mobile ?? '').replace(/\D/g, '')
+    const payload: Record<string, string | null> = Object.fromEntries(
       Object.entries({
         ...values,
-        mobile: toWesternDigits(values.mobile).replace(/\D/g, ''),
+        mobile: mobileDigits,
       }).filter(([, v]) => v !== '' && v !== undefined)
     )
+    // Allow clearing mobile on edit
+    if (contact) {
+      payload.mobile = mobileDigits || null
+    }
     try {
       if (contact) {
         await contactsApi.update(contact.id, payload)
@@ -163,7 +168,7 @@ export default function ContactFormModal({
           <Input {...register('department')} />
         </div>
         <div>
-          <Label>{fa.contacts.mobile} *</Label>
+          <Label>{fa.contacts.mobile}</Label>
           <Input {...register('mobile')} dir="ltr" placeholder="09123456789" error={!!errors.mobile || !!mobileError} />
           {(errors.mobile || mobileError) && (
             <p className="mt-1 text-xs text-red-500">{mobileError || errors.mobile?.message}</p>

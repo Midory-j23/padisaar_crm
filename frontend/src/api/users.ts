@@ -22,4 +22,7 @@ export const usersApi = {
   ) => api.put<ManagedUser>(`/users/${id}`, data),
 
   delete: (id: string) => api.delete(`/users/${id}`),
+
+  resetPassword: (id: string, new_password: string) =>
+    api.put<{ message: string }>(`/users/${id}/password`, { new_password }),
 }

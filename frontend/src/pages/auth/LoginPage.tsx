@@ -151,8 +151,12 @@ export default function LoginPage() {
         <Toaster position="bottom-left" richColors />
         <div className="w-full max-w-md">
           <div className="mb-8 text-center">
-            <h1 className="text-3xl font-bold text-primary">{fa.auth.loginTitle}</h1>
-            <p className="mt-2 text-sm text-gray-500">سیستم مدیریت ارتباط با مشتری</p>
+            <img
+              src="/padisar-logo.png"
+              alt="Padisar Informatics"
+              className="mx-auto h-24 w-auto max-w-[220px] object-contain"
+            />
+            <p className="mt-3 text-sm text-gray-500">سیستم مدیریت ارتباط با مشتری</p>
           </div>
           <div className="rounded-xl bg-white p-8 shadow-lg">
           <div className="mb-6 flex rounded-lg border bg-slate-50 p-1">
@@ -190,7 +194,7 @@ export default function LoginPage() {
                   dir="ltr"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="admin@padisaar.com"
+                  placeholder="example@padisaar.com"
                   required
                   autoComplete="email"
                 />

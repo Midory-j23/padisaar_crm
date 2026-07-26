@@ -25,11 +25,11 @@ class Contact(Base):
     __tablename__ = "contacts"
 
     id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    account_id: Mapped[str] = mapped_column(ForeignKey("accounts.id"), nullable=False)
+    account_id: Mapped[str] = mapped_column(ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False)
     full_name: Mapped[str] = mapped_column(String, nullable=False)
     job_title: Mapped[str | None] = mapped_column(String, nullable=True)
     department: Mapped[str | None] = mapped_column(String, nullable=True)
-    mobile: Mapped[str] = mapped_column(String, nullable=False)
+    mobile: Mapped[str | None] = mapped_column(String, nullable=True)
     direct_line: Mapped[str | None] = mapped_column(String, nullable=True)
     email: Mapped[str | None] = mapped_column(String, nullable=True)
     influence_level: Mapped[InfluenceLevel | None] = mapped_column(SAEnum(InfluenceLevel), nullable=True)

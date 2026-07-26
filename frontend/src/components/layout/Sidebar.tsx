@@ -45,12 +45,13 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
         )}
       >
         <div className="flex items-center justify-between border-b border-white/10 px-4 py-4">
-          <NavLink to="/" onClick={onClose} className="flex min-w-0 flex-1 items-center">
+            <NavLink to="/" onClick={onClose} className="flex min-w-0 flex-1 items-center gap-2">
             <img
               src="/padisar-logo.png"
               alt="Padisar Informatics"
               className="h-11 w-auto max-w-full object-contain object-right"
             />
+            <p className="text-base font-medium">سیستم مدیریت ارتباط با مشتری</p>
           </NavLink>
           <button type="button" className="lg:hidden" onClick={onClose}>
             <X className="h-5 w-5" />

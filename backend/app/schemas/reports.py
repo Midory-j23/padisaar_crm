@@ -11,6 +11,7 @@ class ImportRowPreview(BaseModel):
     row_number: int
     record: dict[str, Any]
     errors: list[str]
+    warnings: list[str] = []
     valid: bool
 
 

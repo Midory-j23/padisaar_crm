@@ -43,7 +43,9 @@ export interface Account {
   industry?: Industry | null
   size?: OrgSize | null
   priority_level?: PriorityLevel | null
-  location?: string | null
+  province?: string | null
+  city?: string | null
+  address?: string | null
   website?: string | null
   relationship_status?: RelationshipStatus | null
   account_manager_id?: string | null
@@ -92,7 +94,7 @@ export interface Contact {
   full_name: string
   job_title?: string | null
   department?: string | null
-  mobile: string
+  mobile?: string | null
   direct_line?: string | null
   email?: string | null
   influence_level?: InfluenceLevel | null
@@ -368,6 +370,7 @@ export interface ImportRowPreview {
   row_number: number
   record: Record<string, unknown>
   errors: string[]
+  warnings?: string[]
   valid: boolean
 }
 

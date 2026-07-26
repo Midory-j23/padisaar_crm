@@ -6,7 +6,7 @@ import openpyxl
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -151,7 +151,9 @@ async def export_accounts(db: AsyncSession, template: bool = False) -> io.BytesI
         "اندازه",
         "سطح اولویت",
         "وضعیت ارتباط",
-        "موقعیت",
+        "استان",
+        "شهر",
+        "آدرس",
         "وبسایت",
         "کارشناس پیگیر",
         "تاریخ ثبت",
@@ -170,7 +172,9 @@ async def export_accounts(db: AsyncSession, template: bool = False) -> io.BytesI
                     _label(SIZE_LABELS, acc.size),
                     _label(PRIORITY_LABELS, acc.priority_level),
                     _label(RELATIONSHIP_LABELS, acc.relationship_status),
-                    acc.location or "",
+                    acc.province or "",
+                    acc.city or "",
+                    acc.address or "",
                     acc.website or "",
                     acc.account_manager.name if acc.account_manager else "",
                     to_jalali_str(acc.created_at),
@@ -361,6 +365,31 @@ def _cell_str(value) -> str | None:
     return str(value).strip() or None
 
 
+async def _resolve_account_manager_id(
+    db: AsyncSession, manager_name: str | None
+) -> tuple[str | None, str | None]:
+    """Match Excel name/email to an active user. Returns (user_id, warning)."""
+    if not manager_name:
+        return None, None
+
+    needle = manager_name.strip()
+    result = await db.execute(
+        select(User).where(
+            User.is_active == True,  # noqa: E712
+            or_(
+                func.lower(User.name) == needle.lower(),
+                func.lower(User.email) == needle.lower(),
+            ),
+        )
+    )
+    matches = list(result.scalars().all())
+    if len(matches) == 1:
+        return matches[0].id, None
+    if len(matches) > 1:
+        return None, f"چند کاربر با نام «{needle}» یافت شد؛ کارشناس پیگیر تنظیم نشد"
+    return None, f"کارشناس «{needle}» در سامانه یافت نشد؛ کارشناس پیگیر تنظیم نشد"
+
+
 async def preview_import_accounts(db: AsyncSession, content: bytes) -> ImportPreviewResponse:
     try:
         wb = openpyxl.load_workbook(io.BytesIO(content), read_only=True, data_only=True)
@@ -378,49 +407,81 @@ async def preview_import_accounts(db: AsyncSession, content: bytes) -> ImportPre
         name = _cell_str(row[0] if len(row) > 0 else None)
         national_id_raw = row[1] if len(row) > 1 else None
         national_id = None
-        if national_id_raw is not None:
-            national_id = str(int(national_id_raw)) if isinstance(national_id_raw, (int, float)) else str(national_id_raw).strip()
+        if national_id_raw is not None and str(national_id_raw).strip() != "":
+            if isinstance(national_id_raw, (int, float)):
+                national_id = str(int(national_id_raw))
+            else:
+                national_id = str(national_id_raw).strip()
+
+        industry_raw = _cell_str(row[2] if len(row) > 2 else None)
+        size_raw = _cell_str(row[3] if len(row) > 3 else None)
+        priority_raw = _cell_str(row[4] if len(row) > 4 else None)
+        relationship_raw = _cell_str(row[5] if len(row) > 5 else None)
+        province = _cell_str(row[6] if len(row) > 6 else None)
+        city = _cell_str(row[7] if len(row) > 7 else None)
+        address = _cell_str(row[8] if len(row) > 8 else None)
+        manager_name = _cell_str(row[10] if len(row) > 10 else None)
+
+        industry = _parse_enum(industry_raw, REVERSE_INDUSTRY)
+        size = _parse_enum(size_raw, REVERSE_SIZE)
+        priority_level = _parse_enum(priority_raw, REVERSE_PRIORITY)
+        relationship_status = _parse_enum(relationship_raw, REVERSE_RELATIONSHIP)
+
+        errors: list[str] = []
+        warnings: list[str] = []
+
+        # Only organization name is required; other fields can be completed later
+        if not name:
+            errors.append("نام سازمان الزامی است")
+
+        # Soft handling for incomplete / invalid national id
+        if national_id:
+            if not national_id.isdigit() or len(national_id) != 11:
+                warnings.append("شناسه ملی ناقص/نامعتبر است و ذخیره نمی‌شود؛ بعداً قابل تکمیل است")
+                national_id = None
+            elif national_id in seen_national_ids:
+                errors.append("شناسه ملی تکراری در فایل")
+            else:
+                seen_national_ids.add(national_id)
+                dup = await db.execute(select(Account).where(Account.national_id == national_id))
+                if dup.scalar_one_or_none():
+                    errors.append("شناسه ملی قبلاً در سیستم ثبت شده")
+
+        enum_checks = [
+            ("صنعت", industry, industry_raw),
+            ("اندازه", size, size_raw),
+            ("سطح اولویت", priority_level, priority_raw),
+            ("وضعیت ارتباط", relationship_status, relationship_raw),
+        ]
+        for label, parsed, raw in enum_checks:
+            if raw and parsed is None:
+                warnings.append(f"مقدار «{raw}» برای {label} نامعتبر است و خالی می‌ماند")
+
+        account_manager_id, manager_warning = await _resolve_account_manager_id(db, manager_name)
+        if manager_warning:
+            warnings.append(manager_warning)
 
         record = {
             "name": name,
             "national_id": national_id,
-            "industry": _parse_enum(_cell_str(row[2] if len(row) > 2 else None), REVERSE_INDUSTRY),
-            "size": _parse_enum(_cell_str(row[3] if len(row) > 3 else None), REVERSE_SIZE),
-            "priority_level": _parse_enum(_cell_str(row[4] if len(row) > 4 else None), REVERSE_PRIORITY),
-            "relationship_status": _parse_enum(_cell_str(row[5] if len(row) > 5 else None), REVERSE_RELATIONSHIP),
-            "location": _cell_str(row[6] if len(row) > 6 else None),
-            "website": _cell_str(row[7] if len(row) > 7 else None),
+            "industry": industry,
+            "size": size,
+            "priority_level": priority_level,
+            "relationship_status": relationship_status,
+            "province": province,
+            "city": city,
+            "address": address,
+            "website": _cell_str(row[9] if len(row) > 9 else None),
+            "account_manager_id": account_manager_id,
+            "account_manager_name": manager_name,
         }
-
-        errors: list[str] = []
-        if not name:
-            errors.append("نام سازمان الزامی است")
-        if national_id and (not national_id.isdigit() or len(national_id) != 11):
-            errors.append("شناسه ملی باید ۱۱ رقم باشد")
-        if national_id:
-            if national_id in seen_national_ids:
-                errors.append("شناسه ملی تکراری در فایل")
-            seen_national_ids.add(national_id)
-            dup = await db.execute(select(Account).where(Account.national_id == national_id))
-            if dup.scalar_one_or_none():
-                errors.append("شناسه ملی قبلاً در سیستم ثبت شده")
-
-        enum_fields = [
-            ("industry", record["industry"], row[2] if len(row) > 2 else None),
-            ("size", record["size"], row[3] if len(row) > 3 else None),
-            ("priority_level", record["priority_level"], row[4] if len(row) > 4 else None),
-            ("relationship_status", record["relationship_status"], row[5] if len(row) > 5 else None),
-        ]
-        for field_name, parsed, raw in enum_fields:
-            if raw and str(raw).strip() and parsed is None:
-                errors.append(f"مقدار نامعتبر برای {field_name}")
 
         serializable = {
             **record,
-            "industry": record["industry"].value if record["industry"] else None,
-            "size": record["size"].value if record["size"] else None,
-            "priority_level": record["priority_level"].value if record["priority_level"] else None,
-            "relationship_status": record["relationship_status"].value if record["relationship_status"] else None,
+            "industry": industry.value if industry else None,
+            "size": size.value if size else None,
+            "priority_level": priority_level.value if priority_level else None,
+            "relationship_status": relationship_status.value if relationship_status else None,
         }
 
         rows_preview.append(
@@ -428,6 +489,7 @@ async def preview_import_accounts(db: AsyncSession, content: bytes) -> ImportPre
                 row_number=row_idx,
                 record=serializable,
                 errors=errors,
+                warnings=warnings,
                 valid=len(errors) == 0,
             )
         )
@@ -452,19 +514,39 @@ async def confirm_import_accounts(
             return None
         if isinstance(value, enum_cls):
             return value
-        return enum_cls(value)
+        try:
+            return enum_cls(value)
+        except (TypeError, ValueError):
+            return None
 
     created = 0
     for record in records:
+        name = (record.get("name") or "").strip() if record.get("name") else None
+        if not name:
+            continue
+
+        national_id = record.get("national_id")
+        if national_id and (not str(national_id).isdigit() or len(str(national_id)) != 11):
+            national_id = None
+
+        account_manager_id = record.get("account_manager_id")
+        if not account_manager_id and record.get("account_manager_name"):
+            account_manager_id, _ = await _resolve_account_manager_id(
+                db, str(record.get("account_manager_name"))
+            )
+
         account = Account(
-            name=record["name"],
-            national_id=record.get("national_id"),
+            name=name,
+            national_id=national_id or None,
             industry=_enum(Industry, record.get("industry")),
             size=_enum(OrgSize, record.get("size")),
             priority_level=_enum(PriorityLevel, record.get("priority_level")),
             relationship_status=_enum(RelationshipStatus, record.get("relationship_status")),
-            location=record.get("location"),
-            website=record.get("website"),
+            province=record.get("province") or None,
+            city=record.get("city") or None,
+            address=record.get("address") or None,
+            website=record.get("website") or None,
+            account_manager_id=account_manager_id or None,
         )
         db.add(account)
         await db.flush()
@@ -517,7 +599,7 @@ async def preview_import_contacts(db: AsyncSession, content: bytes) -> ImportPre
         if not account_name:
             errors.append("نام سازمان الزامی است")
         if not mobile:
-            errors.append("شماره موبایل الزامی است")
+            pass
         elif mobile in seen_mobiles:
             errors.append("موبایل تکراری در فایل")
         if mobile:
@@ -586,7 +668,7 @@ async def confirm_import_contacts(
             full_name=record["full_name"],
             job_title=record.get("job_title"),
             department=record.get("department"),
-            mobile=record["mobile"],
+            mobile=record.get("mobile"),
             direct_line=record.get("direct_line"),
             email=record.get("email"),
             influence_level=_enum(InfluenceLevel, record.get("influence_level")),

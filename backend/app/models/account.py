@@ -45,7 +45,9 @@ class Account(Base):
     industry: Mapped[Industry | None] = mapped_column(SAEnum(Industry), nullable=True)
     size: Mapped[OrgSize | None] = mapped_column(SAEnum(OrgSize), nullable=True)
     priority_level: Mapped[PriorityLevel | None] = mapped_column(SAEnum(PriorityLevel), nullable=True)
-    location: Mapped[str | None] = mapped_column(String, nullable=True)
+    province: Mapped[str | None] = mapped_column(String, nullable=True)
+    city: Mapped[str | None] = mapped_column(String, nullable=True)
+    address: Mapped[str | None] = mapped_column(String, nullable=True)
     website: Mapped[str | None] = mapped_column(String, nullable=True)
     relationship_status: Mapped[RelationshipStatus | None] = mapped_column(
         SAEnum(RelationshipStatus), nullable=True

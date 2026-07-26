@@ -23,7 +23,7 @@ export default function Header({ title, breadcrumb, onMenuClick }: HeaderProps) 
   }
 
   return (
-    <header className="sticky top-0 z-30 border-b border-gray-200 bg-white px-4 py-3 lg:px-6" data-print-hide>
+    <header className="sticky top-0 z-30 border-b border-gray-200 bg-white px-4 py-4 lg:px-6" data-print-hide>
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" className="lg:hidden" onClick={onMenuClick}>

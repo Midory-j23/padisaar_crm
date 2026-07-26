@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { toast } from 'sonner'
 import { authApi } from '@/api/auth'
@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/Input'
 import { Label } from '@/components/ui/Label'
 import { Select } from '@/components/ui/Select'
 import { fa } from '@/lib/i18n/fa'
+import { IRAN_PROVINCE_NAMES, getCitiesForProvince } from '@/lib/iranGeo'
 import { accountSchema, type AccountFormValues } from '@/lib/validations/account'
 import { usePermissions } from '@/hooks/usePermissions'
 import type { Account, UserOption } from '@/types'
@@ -27,7 +28,9 @@ const emptyDefaults: AccountFormValues = {
   industry: '',
   size: '',
   priority_level: '',
-  location: '',
+  province: '',
+  city: '',
+  address: '',
   website: '',
   relationship_status: '',
   account_manager_id: '',
@@ -47,11 +50,16 @@ export default function AccountFormModal({
     register,
     handleSubmit,
     reset,
+    setValue,
+    control,
     formState: { errors },
   } = useForm<AccountFormValues>({
     resolver: zodResolver(accountSchema),
     defaultValues: emptyDefaults,
   })
+
+  const selectedProvince = useWatch({ control, name: 'province' })
+  const cities = getCitiesForProvince(selectedProvince)
 
   useEffect(() => {
     if (open && account) {
@@ -61,7 +69,9 @@ export default function AccountFormModal({
         industry: account.industry ?? '',
         size: account.size ?? '',
         priority_level: account.priority_level ?? '',
-        location: account.location ?? '',
+        province: account.province ?? '',
+        city: account.city ?? '',
+        address: account.address ?? '',
         website: account.website ?? '',
         relationship_status: account.relationship_status ?? '',
         account_manager_id: account.account_manager_id ?? '',
@@ -79,9 +89,15 @@ export default function AccountFormModal({
 
   const onSubmit = async (values: AccountFormValues) => {
     setSubmitting(true)
-    const payload = Object.fromEntries(
+    const payload: Record<string, string | null> = Object.fromEntries(
       Object.entries(values).filter(([, v]) => v !== '' && v !== undefined)
     )
+    // Explicitly clear optional address fields when emptied on edit
+    if (account) {
+      payload.province = values.province || null
+      payload.city = values.city || null
+      payload.address = values.address || null
+    }
     try {
       if (account) {
         await accountsApi.update(account.id, payload)
@@ -166,15 +182,34 @@ export default function AccountFormModal({
           </Select>
         </div>
         <div>
-          <Label>{fa.accounts.location}</Label>
-          <Input {...register('location')} />
+          <Label>{fa.accounts.province}</Label>
+          <Select
+            {...register('province', {
+              onChange: () => setValue('city', ''),
+            })}
+          >
+            <option value="">—</option>
+            {IRAN_PROVINCE_NAMES.map((p) => (
+              <option key={p} value={p}>{p}</option>
+            ))}
+          </Select>
         </div>
         <div>
+          <Label>{fa.accounts.city}</Label>
+          <Select {...register('city')} disabled={!selectedProvince}>
+            <option value="">—</option>
+            {cities.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </Select>
+        </div>
+        <div className="sm:col-span-2">
+          <Label>{fa.accounts.address}</Label>
+          <Input {...register('address')} placeholder="خیابان، کوچه، پلاک..." />
+        </div>
+        <div className="sm:col-span-2">
           <Label>{fa.accounts.website}</Label>
-          <Input {...register('website')} dir="ltr" placeholder="https://example.com" />
-          {errors.website && (
-            <p className="mt-1 text-xs text-red-500">{errors.website.message}</p>
-          )}
+          <Input {...register('website')} dir="ltr" placeholder="example.com" />
         </div>
         {isManager && (
           <div className="sm:col-span-2">

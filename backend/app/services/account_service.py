@@ -1,10 +1,14 @@
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.account import Account, Industry, PriorityLevel, RelationshipStatus
+from app.models.activity import Activity, activity_contacts
 from app.models.audit_log import AuditAction, AuditLog
+from app.models.contact import Contact
+from app.models.opportunity import Opportunity, OpportunityStageHistory
 from app.models.user import User, UserRole
+from app.models.win_loss import WinLossAnalysis
 from app.schemas.account import AccountCreate, AccountResponse, AccountUpdate
 from app.services.access import ensure_account_access, get_account_or_404
 from app.services.exceptions import ForbiddenError, NotFoundError
@@ -20,7 +24,9 @@ def to_response(account: Account) -> AccountResponse:
         industry=account.industry,
         size=account.size,
         priority_level=account.priority_level,
-        location=account.location,
+        province=account.province,
+        city=account.city,
+        address=account.address,
         website=account.website,
         relationship_status=account.relationship_status,
         account_manager_id=account.account_manager_id,
@@ -146,6 +152,37 @@ async def update_account(
 
 async def delete_account(db: AsyncSession, current_user: User, account_id: str) -> None:
     account = await get_account_or_404(db, account_id)
+
+    opp_ids = select(Opportunity.id).where(Opportunity.account_id == account_id)
+    activity_ids = select(Activity.id).where(
+        or_(Activity.account_id == account_id, Activity.opportunity_id.in_(opp_ids))
+    )
+    contact_ids = select(Contact.id).where(Contact.account_id == account_id)
+
+    # Delete in dependency order so Postgres FKs do not block the account delete
+    await db.execute(
+        activity_contacts.delete().where(
+            or_(
+                activity_contacts.c.activity_id.in_(activity_ids),
+                activity_contacts.c.contact_id.in_(contact_ids),
+            )
+        )
+    )
+    await db.execute(
+        delete(Activity).where(
+            or_(Activity.account_id == account_id, Activity.opportunity_id.in_(opp_ids))
+        )
+    )
+    await db.execute(delete(WinLossAnalysis).where(WinLossAnalysis.opportunity_id.in_(opp_ids)))
+    await db.execute(
+        delete(OpportunityStageHistory).where(OpportunityStageHistory.opportunity_id.in_(opp_ids))
+    )
+    await db.execute(delete(Opportunity).where(Opportunity.account_id == account_id))
+    await db.execute(
+        update(Activity).where(Activity.contact_id.in_(contact_ids)).values(contact_id=None)
+    )
+    await db.execute(delete(Contact).where(Contact.account_id == account_id))
+
     await log_audit(db, "Account", account_id, AuditAction.DELETE, current_user.id, {})
     await db.delete(account)
     await db.commit()

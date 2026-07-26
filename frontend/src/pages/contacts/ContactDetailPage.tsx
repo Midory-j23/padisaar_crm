@@ -95,13 +95,20 @@ export default function ContactDetailPage() {
 
       <Card>
         <CardContent className="flex flex-wrap gap-6 py-6">
-          <a
-            href={`tel:${contact.mobile}`}
-            className="flex items-center gap-2 text-primary hover:underline"
-          >
-            <Phone className="h-5 w-5" />
-            <span dir="ltr">{formatPhoneFa(contact.mobile)}</span>
-          </a>
+          {contact.mobile ? (
+            <a
+              href={`tel:${contact.mobile}`}
+              className="flex items-center gap-2 text-primary hover:underline"
+            >
+              <Phone className="h-5 w-5" />
+              <span dir="ltr">{formatPhoneFa(contact.mobile)}</span>
+            </a>
+          ) : (
+            <span className="flex items-center gap-2 text-gray-400">
+              <Phone className="h-5 w-5" />
+              —
+            </span>
+          )}
           {contact.email && (
             <a
               href={`mailto:${contact.email}`}

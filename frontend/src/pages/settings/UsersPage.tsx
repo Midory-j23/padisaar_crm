@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Pencil, Plus, Trash2 } from 'lucide-react'
+import { KeyRound, Pencil, Plus, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { usersApi, type ManagedUser } from '@/api/users'
 import { Badge } from '@/components/ui/Badge'
@@ -24,6 +24,10 @@ export default function UsersPage() {
   const [editUser, setEditUser] = useState<ManagedUser | null>(null)
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [resetUser, setResetUser] = useState<ManagedUser | null>(null)
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [resetting, setResetting] = useState(false)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [mobile, setMobile] = useState('')
@@ -70,6 +74,12 @@ export default function UsersPage() {
     setModalOpen(true)
   }
 
+  const openResetPassword = (user: ManagedUser) => {
+    setResetUser(user)
+    setNewPassword('')
+    setConfirmPassword('')
+  }
+
   const handleSave = async () => {
     setSaving(true)
     try {
@@ -83,7 +93,7 @@ export default function UsersPage() {
         toast.success(fa.toast.updateSuccess('کاربر'))
       } else {
         if (!password || password.length < 6) {
-          toast.error('رمز عبور باید حداقل ۶ کاراکتر باشد')
+          toast.error(fa.settings.passwordMinLength)
           setSaving(false)
           return
         }
@@ -99,6 +109,31 @@ export default function UsersPage() {
       toast.error(message)
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleResetPassword = async () => {
+    if (!resetUser) return
+    if (newPassword.length < 6) {
+      toast.error(fa.settings.passwordMinLength)
+      return
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error(fa.settings.passwordMismatch)
+      return
+    }
+    setResetting(true)
+    try {
+      await usersApi.resetPassword(resetUser.id, newPassword)
+      toast.success(fa.settings.resetPasswordSuccess)
+      setResetUser(null)
+    } catch (err: unknown) {
+      const message =
+        (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ??
+        fa.toast.error
+      toast.error(message)
+    } finally {
+      setResetting(false)
     }
   }
 
@@ -167,6 +202,14 @@ export default function UsersPage() {
                         <div className="flex items-center gap-1">
                           <Button variant="ghost" size="sm" onClick={() => openEdit(u)}>
                             <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => openResetPassword(u)}
+                            title={fa.settings.resetPassword}
+                          >
+                            <KeyRound className="h-4 w-4 text-amber-600" />
                           </Button>
                           {canDeleteUser(u) && (
                             <Button
@@ -261,6 +304,51 @@ export default function UsersPage() {
               </Select>
             </div>
           )}
+        </div>
+      </Dialog>
+
+      <Dialog
+        open={!!resetUser}
+        onOpenChange={(open) => !open && setResetUser(null)}
+        title={
+          resetUser
+            ? fa.settings.resetPasswordFor(resetUser.name)
+            : fa.settings.resetPassword
+        }
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setResetUser(null)}>
+              {fa.actions.cancel}
+            </Button>
+            <Button onClick={handleResetPassword} disabled={resetting}>
+              {resetting ? fa.actions.submitting : fa.settings.resetPassword}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <div>
+            <Label>{fa.settings.newPassword}</Label>
+            <Input
+              type="password"
+              dir="ltr"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              autoComplete="new-password"
+              required
+            />
+          </div>
+          <div>
+            <Label>{fa.settings.confirmPassword}</Label>
+            <Input
+              type="password"
+              dir="ltr"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              autoComplete="new-password"
+              required
+            />
+          </div>
         </div>
       </Dialog>
 

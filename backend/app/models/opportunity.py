@@ -39,7 +39,7 @@ class Opportunity(Base):
     __tablename__ = "opportunities"
 
     id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    account_id: Mapped[str] = mapped_column(ForeignKey("accounts.id"), nullable=False)
+    account_id: Mapped[str] = mapped_column(ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False)
     title: Mapped[str] = mapped_column(String, nullable=False)
     project_type: Mapped[ProjectType | None] = mapped_column(SAEnum(ProjectType), nullable=True)
     sales_stage: Mapped[SalesStage] = mapped_column(
@@ -69,7 +69,9 @@ class OpportunityStageHistory(Base):
     __tablename__ = "opportunity_stage_history"
 
     id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    opportunity_id: Mapped[str] = mapped_column(ForeignKey("opportunities.id"), nullable=False)
+    opportunity_id: Mapped[str] = mapped_column(
+        ForeignKey("opportunities.id", ondelete="CASCADE"), nullable=False
+    )
     from_stage: Mapped[SalesStage | None] = mapped_column(SAEnum(SalesStage), nullable=True)
     to_stage: Mapped[SalesStage] = mapped_column(SAEnum(SalesStage), nullable=False)
     changed_by_id: Mapped[str] = mapped_column(ForeignKey("users.id"), nullable=False)

@@ -28,7 +28,9 @@ class WinLossAnalysis(Base):
     __tablename__ = "win_loss_analysis"
 
     id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    opportunity_id: Mapped[str] = mapped_column(ForeignKey("opportunities.id"), unique=True, nullable=False)
+    opportunity_id: Mapped[str] = mapped_column(
+        ForeignKey("opportunities.id", ondelete="CASCADE"), unique=True, nullable=False
+    )
     final_status: Mapped[FinalStatus] = mapped_column(SAEnum(FinalStatus), nullable=False)
     result_reason: Mapped[ResultReason | None] = mapped_column(SAEnum(ResultReason), nullable=True)
     lessons_learned: Mapped[str | None] = mapped_column(Text, nullable=True)

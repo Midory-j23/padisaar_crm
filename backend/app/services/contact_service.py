@@ -1,7 +1,8 @@
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.models.activity import Activity, activity_contacts
 from app.models.audit_log import AuditAction
 from app.models.contact import Contact, InfluenceLevel, Sentiment
 from app.models.user import User, UserRole
@@ -101,13 +102,16 @@ async def list_contacts(
 async def create_contact(db: AsyncSession, current_user: User, body: ContactCreate) -> ContactResponse:
     await ensure_account_access(db, body.account_id, current_user)
 
-    mobile = normalize_mobile(body.mobile)
-    dup = await db.execute(select(Contact).where(Contact.mobile == mobile))
-    if dup.scalar_one_or_none():
-        raise BadRequestError("این شماره موبایل قبلاً در سیستم ثبت شده است")
-
     data = body.model_dump()
-    data["mobile"] = mobile
+    mobile = body.mobile
+    if mobile:
+        mobile = normalize_mobile(mobile)
+        dup = await db.execute(select(Contact).where(Contact.mobile == mobile))
+        if dup.scalar_one_or_none():
+            raise BadRequestError("این شماره موبایل قبلاً در سیستم ثبت شده است")
+        data["mobile"] = mobile
+    else:
+        data["mobile"] = None
     contact = Contact(**data)
     db.add(contact)
     await db.flush()
@@ -136,14 +140,17 @@ async def update_contact(
     if "account_id" in updates and updates["account_id"]:
         await ensure_account_access(db, updates["account_id"], current_user)
 
-    if "mobile" in updates and updates["mobile"]:
-        mobile = normalize_mobile(updates["mobile"])
-        dup = await db.execute(
-            select(Contact).where(Contact.mobile == mobile, Contact.id != contact_id)
-        )
-        if dup.scalar_one_or_none():
-            raise BadRequestError("این شماره موبایل قبلاً در سیستم ثبت شده است")
-        updates["mobile"] = mobile
+    if "mobile" in updates:
+        if updates["mobile"]:
+            mobile = normalize_mobile(updates["mobile"])
+            dup = await db.execute(
+                select(Contact).where(Contact.mobile == mobile, Contact.id != contact_id)
+            )
+            if dup.scalar_one_or_none():
+                raise BadRequestError("این شماره موبایل قبلاً در سیستم ثبت شده است")
+            updates["mobile"] = mobile
+        else:
+            updates["mobile"] = None
 
     old_data = {c.name: getattr(contact, c.name) for c in contact.__table__.columns}
     for field, value in updates.items():
@@ -171,6 +178,14 @@ async def delete_contact(db: AsyncSession, current_user: User, contact_id: str) 
     contact = result.scalar_one_or_none()
     if not contact:
         raise NotFoundError("مخاطب یافت نشد")
+
+    # Detach from activities so FK does not block delete (legacy contact_id column)
+    await db.execute(
+        update(Activity).where(Activity.contact_id == contact_id).values(contact_id=None)
+    )
+    await db.execute(
+        activity_contacts.delete().where(activity_contacts.c.contact_id == contact_id)
+    )
 
     await log_audit(db, "Contact", contact_id, AuditAction.DELETE, current_user.id, {})
     await db.delete(contact)

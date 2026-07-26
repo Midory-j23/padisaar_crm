@@ -19,7 +19,7 @@ class ContactCreate(BaseModel):
     full_name: str
     job_title: Optional[str] = None
     department: Optional[str] = None
-    mobile: str
+    mobile: Optional[str] = None
     direct_line: Optional[str] = None
     email: Optional[EmailStr] = None
     influence_level: Optional[InfluenceLevel] = None
@@ -27,8 +27,10 @@ class ContactCreate(BaseModel):
 
     @field_validator("mobile")
     @classmethod
-    def validate_mobile(cls, v: str) -> str:
-        v = normalize_mobile(v)
+    def validate_mobile(cls, v: str | None) -> str | None:
+        if v is None or str(v).strip() == "":
+            return None
+        v = normalize_mobile(str(v).strip())
         if not re.match(r"^09\d{9}$", v):
             raise ValueError("شماره موبایل باید ۱۱ رقم و با ۰۹ شروع شود")
         return v
@@ -48,9 +50,9 @@ class ContactUpdate(BaseModel):
     @field_validator("mobile")
     @classmethod
     def validate_mobile(cls, v: str | None) -> str | None:
-        if v is None:
-            return v
-        v = normalize_mobile(v)
+        if v is None or str(v).strip() == "":
+            return None
+        v = normalize_mobile(str(v).strip())
         if not re.match(r"^09\d{9}$", v):
             raise ValueError("شماره موبایل باید ۱۱ رقم و با ۰۹ شروع شود")
         return v
@@ -63,7 +65,7 @@ class ContactResponse(BaseModel):
     full_name: str
     job_title: Optional[str] = None
     department: Optional[str] = None
-    mobile: str
+    mobile: Optional[str] = None
     direct_line: Optional[str] = None
     email: Optional[str] = None
     influence_level: Optional[InfluenceLevel] = None

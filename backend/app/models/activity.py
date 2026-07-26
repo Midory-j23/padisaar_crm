@@ -27,9 +27,13 @@ class Activity(Base):
     __tablename__ = "activities"
 
     id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    account_id: Mapped[str] = mapped_column(ForeignKey("accounts.id"), nullable=False)
-    opportunity_id: Mapped[str | None] = mapped_column(ForeignKey("opportunities.id"), nullable=True)
-    contact_id: Mapped[str | None] = mapped_column(ForeignKey("contacts.id"), nullable=True)
+    account_id: Mapped[str] = mapped_column(ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False)
+    opportunity_id: Mapped[str | None] = mapped_column(
+        ForeignKey("opportunities.id", ondelete="SET NULL"), nullable=True
+    )
+    contact_id: Mapped[str | None] = mapped_column(
+        ForeignKey("contacts.id", ondelete="SET NULL"), nullable=True
+    )
     activity_type: Mapped[ActivityType] = mapped_column(SAEnum(ActivityType), nullable=False)
     activity_date: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     meeting_notes: Mapped[str | None] = mapped_column(Text, nullable=True)

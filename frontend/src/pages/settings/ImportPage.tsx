@@ -89,7 +89,7 @@ function ImportWizard({ tab, onReset }: ImportWizardProps) {
         <p className="font-medium">{fa.settings.importStep1}</p>
         <p className="mt-1 text-sm text-gray-500">
           {isAccounts
-            ? 'فایل قالب را دانلود کنید، اطلاعات سازمان‌ها را وارد کنید و ذخیره کنید.'
+            ? 'فایل قالب را دانلود کنید. فقط نام سازمان الزامی است؛ بقیه ستون‌ها می‌توانند خالی بمانند. در ستون کارشناس پیگیر، نام دقیق کاربر سامانه را بنویسید.'
             : 'فایل قالب را دانلود کنید؛ سازمان‌ها باید از قبل در سیستم ثبت شده باشند.'}
         </p>
         <Button variant="outline" className="mt-3" onClick={handleDownloadTemplate}>
@@ -117,7 +117,12 @@ function ImportWizard({ tab, onReset }: ImportWizardProps) {
         <div>
           <p className="mb-3 font-medium">{fa.settings.importStep3}</p>
           <p className="mb-3 text-sm text-gray-600">
-            {toPersianDigits(validCount)} رکورد معتبر ·{' '}
+            {isAccounts
+              ? 'فقط نام سازمان الزامی است؛ بقیه فیلدها می‌توانند خالی بمانند و بعداً تکمیل شوند. ستون «کارشناس پیگیر» در صورت تطبیق نام با کاربر سامانه، اختصاص داده می‌شود.'
+              : null}
+          </p>
+          <p className="mb-3 text-sm text-gray-600">
+            {toPersianDigits(validCount)} رکورد قابل ورود ·{' '}
             {toPersianDigits(preview.length - validCount)} رکورد دارای خطا
           </p>
           <div className="max-h-80 overflow-auto rounded border">
@@ -129,6 +134,7 @@ function ImportWizard({ tab, onReset }: ImportWizardProps) {
                     <>
                       <th className="px-3 py-2 text-right">نام سازمان</th>
                       <th className="px-3 py-2 text-right">شناسه ملی</th>
+                      <th className="px-3 py-2 text-right">کارشناس پیگیر</th>
                     </>
                   ) : (
                     <>
@@ -137,20 +143,36 @@ function ImportWizard({ tab, onReset }: ImportWizardProps) {
                       <th className="px-3 py-2 text-right">موبایل</th>
                     </>
                   )}
-                  <th className="px-3 py-2 text-right">خطاها</th>
+                  <th className="px-3 py-2 text-right">پیام‌ها</th>
                 </tr>
               </thead>
               <tbody>
-                {preview.map((row) => (
+                {preview.map((row) => {
+                  const warnings = row.warnings ?? []
+                  const messages = [...row.errors, ...warnings]
+                  const hasHardError = !row.valid
+                  return (
                   <tr
                     key={row.row_number}
-                    className={`border-t ${row.valid ? 'bg-green-50/50' : 'bg-red-50/50'}`}
+                    className={`border-t ${
+                      hasHardError
+                        ? 'bg-red-50/50'
+                        : warnings.length
+                          ? 'bg-amber-50/50'
+                          : 'bg-green-50/50'
+                    }`}
                   >
                     <td className="px-3 py-2">{toPersianDigits(row.row_number)}</td>
                     {isAccounts ? (
                       <>
                         <td className="px-3 py-2">{String(row.record.name ?? '')}</td>
                         <td className="px-3 py-2">{String(row.record.national_id ?? '—')}</td>
+                        <td className="px-3 py-2">
+                          {String(row.record.account_manager_name ?? '—')}
+                          {row.record.account_manager_id ? (
+                            <span className="mr-1 text-xs text-green-700">✓</span>
+                          ) : null}
+                        </td>
                       </>
                     ) : (
                       <>
@@ -159,11 +181,16 @@ function ImportWizard({ tab, onReset }: ImportWizardProps) {
                         <td className="px-3 py-2">{String(row.record.mobile ?? '')}</td>
                       </>
                     )}
-                    <td className="px-3 py-2 text-xs text-red-600">
-                      {row.errors.join(' · ') || '—'}
+                    <td
+                      className={`px-3 py-2 text-xs ${
+                        hasHardError ? 'text-red-600' : warnings.length ? 'text-amber-700' : 'text-gray-500'
+                      }`}
+                    >
+                      {messages.join(' · ') || '—'}
                     </td>
                   </tr>
-                ))}
+                  )
+                })}
               </tbody>
             </table>
           </div>
