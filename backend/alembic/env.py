@@ -13,6 +13,7 @@ from app.models import (  # noqa: F401
     Activity,
     AuditLog,
     Contact,
+    ErrorReport,
     Notification,
     Opportunity,
     OpportunityStageHistory,

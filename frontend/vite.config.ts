@@ -13,11 +13,13 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'http://127.0.0.1:8001',
+        // Backend default is 8000. Use 8001 if another app occupies 8000:
+        // uvicorn app.main:app --reload --port 8001
+        target: 'http://127.0.0.1:8000',
         changeOrigin: true,
       },
       '/uploads': {
-        target: 'http://127.0.0.1:8001',
+        target: 'http://127.0.0.1:8000',
         changeOrigin: true,
       },
     },

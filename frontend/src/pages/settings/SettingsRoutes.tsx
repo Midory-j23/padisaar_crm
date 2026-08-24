@@ -5,6 +5,7 @@ import PersonalSettingsPage from './PersonalSettingsPage'
 import UsersPage from './UsersPage'
 import ImportPage from './ImportPage'
 import AuditLogPage from './AuditLogPage'
+import ErrorReportsPage from './ErrorReportsPage'
 
 export default function SettingsRoutes() {
   return (
@@ -32,6 +33,14 @@ export default function SettingsRoutes() {
           element={
             <ManagerRoute>
               <AuditLogPage />
+            </ManagerRoute>
+          }
+        />
+        <Route
+          path="errors"
+          element={
+            <ManagerRoute>
+              <ErrorReportsPage />
             </ManagerRoute>
           }
         />

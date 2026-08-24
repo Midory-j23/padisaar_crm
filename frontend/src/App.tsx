@@ -2,6 +2,8 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { Toaster } from 'sonner'
 import DashboardLayout from './components/layout/DashboardLayout'
 import { ManagerRoute } from './components/guards/ManagerRoute'
+import { ErrorBoundary } from './components/ErrorBoundary'
+import ErrorReporter from './components/ErrorReporter'
 import LoginPage from './pages/auth/LoginPage'
 import DashboardPage from './pages/dashboard/DashboardPage'
 import AccountsRoutes from './pages/accounts/AccountsRoutes'
@@ -21,9 +23,11 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <Toaster position="bottom-left" richColors />
-      <Routes>
+    <ErrorBoundary>
+      <ErrorReporter />
+      <BrowserRouter>
+        <Toaster position="bottom-left" richColors />
+        <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route
           path="/unauthorized"
@@ -57,7 +61,8 @@ export default function App() {
           <Route path="settings/*" element={<SettingsRoutes />} />
         </Route>
         <Route path="*" element={<NotFoundPage />} />
-      </Routes>
-    </BrowserRouter>
+        </Routes>
+      </BrowserRouter>
+    </ErrorBoundary>
   )
 }

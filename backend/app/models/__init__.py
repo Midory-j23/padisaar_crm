@@ -2,6 +2,7 @@ from app.models.account import Account
 from app.models.activity import Activity
 from app.models.audit_log import AuditLog
 from app.models.contact import Contact
+from app.models.error_report import ErrorReport
 from app.models.notification import Notification
 from app.models.opportunity import Opportunity, OpportunityStageHistory
 from app.models.login_otp import LoginOtp
@@ -17,6 +18,7 @@ __all__ = [
     "Activity",
     "WinLossAnalysis",
     "AuditLog",
+    "ErrorReport",
     "Notification",
     "LoginOtp",
 ]

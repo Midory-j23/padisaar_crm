@@ -1,13 +1,17 @@
 import { useEffect, useState } from 'react'
-import { Outlet, useLocation } from 'react-router-dom'
+import { Link, Outlet, useLocation } from 'react-router-dom'
+import { AlertTriangle } from 'lucide-react'
 import { notificationsApi } from '@/api/notifications'
+import { errorsApi } from '@/api/errors'
 import Header from './Header'
 import Sidebar from './Sidebar'
 import AppFooter from './AppFooter'
 import ActivityFab from '@/components/shared/ActivityFab'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { fa } from '@/lib/i18n/fa'
 import { usePageTitle } from '@/hooks/usePageTitle'
 import { useNotificationStore } from '@/store/notificationStore'
+import { usePermissions } from '@/hooks/usePermissions'
 
 const pageTitles: Record<string, { title: string; breadcrumb: string[] }> = {
   '/': { title: fa.dashboard.title, breadcrumb: [fa.nav.dashboard] },
@@ -23,6 +27,7 @@ const pageTitles: Record<string, { title: string; breadcrumb: string[] }> = {
   '/settings/users': { title: fa.settings.users, breadcrumb: [fa.nav.dashboard, fa.nav.settings, fa.settings.users] },
   '/settings/import': { title: fa.settings.import, breadcrumb: [fa.nav.dashboard, fa.nav.settings, fa.settings.import] },
   '/settings/audit': { title: fa.settings.audit, breadcrumb: [fa.nav.dashboard, fa.nav.settings, fa.settings.audit] },
+  '/settings/errors': { title: fa.settings.errors, breadcrumb: [fa.nav.dashboard, fa.nav.settings, fa.settings.errors] },
   '/reports/opportunities': { title: fa.reports.opportunities, breadcrumb: [fa.nav.dashboard, fa.nav.reports, fa.reports.opportunities] },
   '/reports/activities': { title: fa.reports.activities, breadcrumb: [fa.nav.dashboard, fa.nav.reports, fa.reports.activities] },
   '/reports/win-loss': { title: fa.reports.winLoss, breadcrumb: [fa.nav.dashboard, fa.nav.reports, fa.reports.winLoss] },
@@ -32,6 +37,8 @@ export default function DashboardLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const location = useLocation()
   const setUnreadCount = useNotificationStore((s) => s.setUnreadCount)
+  const { isManager } = usePermissions()
+  const [openErrors, setOpenErrors] = useState(0)
 
   useEffect(() => {
     const refreshNotifications = async () => {
@@ -48,6 +55,14 @@ export default function DashboardLayout() {
     const interval = setInterval(refreshNotifications, 2 * 60 * 1000)
     return () => clearInterval(interval)
   }, [setUnreadCount])
+
+  useEffect(() => {
+    if (!isManager) return
+    errorsApi
+      .openCount()
+      .then(({ data }) => setOpenErrors(data.count))
+      .catch(() => {})
+  }, [isManager, location.pathname])
 
   const basePath = location.pathname.replace(/\/$/, '') || '/'
   const pageInfo =
@@ -66,8 +81,21 @@ export default function DashboardLayout() {
           breadcrumb={pageInfo.breadcrumb}
           onMenuClick={() => setSidebarOpen(true)}
         />
+        {isManager && openErrors > 0 && !location.pathname.startsWith('/settings/errors') && (
+          <div className="border-b border-amber-200 bg-amber-50 px-4 py-2 lg:px-6" data-print-hide>
+            <Link
+              to="/settings/errors"
+              className="flex items-center gap-2 text-sm text-amber-900 hover:underline"
+            >
+              <AlertTriangle className="h-4 w-4 shrink-0" />
+              {fa.settings.openErrorsBanner(openErrors)}
+            </Link>
+          </div>
+        )}
         <main className="flex-1 p-4 lg:p-6">
-          <Outlet />
+          <ErrorBoundary key={location.pathname} compact>
+            <Outlet />
+          </ErrorBoundary>
         </main>
         <AppFooter />
       </div>

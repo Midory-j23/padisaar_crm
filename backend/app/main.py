@@ -1,8 +1,12 @@
 import os
+import traceback
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.routers import (
     accounts,
@@ -10,6 +14,7 @@ from app.routers import (
     auth,
     contacts,
     dashboard,
+    errors,
     notifications,
     opportunities,
     reports,
@@ -18,6 +23,9 @@ from app.routers import (
 )
 
 from app.config import settings
+from app.database import AsyncSessionLocal
+from app.schemas.error_report import ErrorReportCreate
+from app.services import error_report_service
 
 app = FastAPI(title="Padisaar CRM API", version="1.0.0", redirect_slashes=False)
 
@@ -42,6 +50,42 @@ app.include_router(dashboard.router, prefix="/api/dashboard", tags=["dashboard"]
 app.include_router(notifications.router, prefix="/api/notifications", tags=["notifications"])
 app.include_router(reports.router, prefix="/api/reports", tags=["reports"])
 app.include_router(users.router, prefix="/api/users", tags=["users"])
+app.include_router(errors.router, prefix="/api/errors", tags=["errors"])
+
+
+async def _log_backend_error(request: Request, message: str, stack: str | None, status_code: int) -> None:
+    if request.url.path.startswith("/api/errors"):
+        return
+    try:
+        async with AsyncSessionLocal() as db:
+            await error_report_service.record_error(
+                db,
+                ErrorReportCreate(
+                    source="backend",
+                    message=(message or "Unhandled backend error")[:2000],
+                    stack=(stack[:8000] if stack else None),
+                    path=request.url.path,
+                    method=request.method,
+                    status_code=status_code,
+                    user_agent=request.headers.get("user-agent"),
+                ),
+            )
+            await db.commit()
+    except Exception:
+        pass
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    if isinstance(exc, (StarletteHTTPException, RequestValidationError)):
+        raise exc
+    await _log_backend_error(
+        request,
+        str(exc) or type(exc).__name__,
+        traceback.format_exc(),
+        500,
+    )
+    return JSONResponse(status_code=500, content={"detail": "خطای غیرمنتظره‌ای رخ داد"})
 
 
 @app.get("/")
