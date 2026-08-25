@@ -75,6 +75,9 @@ async def _send_http_gateway(mobile: str, message: str) -> None:
     except httpx.RequestError as exc:
         logger.error("SMS gateway connection error: %s", exc)
         raise BadRequestError("اتصال به سرور پیامک برقرار نشد")
+    except Exception as exc:
+        logger.exception("Unexpected SMS gateway error: %s", exc)
+        raise BadRequestError("ارسال پیامک با خطا مواجه شد") from exc
 
     if response.status_code >= 400:
         logger.error("SMS gateway error %s: %s", response.status_code, response.text)
