@@ -1,5 +1,7 @@
+import logging
 import os
 import traceback
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -23,11 +25,32 @@ from app.routers import (
 )
 
 from app.config import settings
-from app.database import AsyncSessionLocal
+from app.database import AsyncSessionLocal, engine
+from app.schema_ensure import ensure_auth_schema
 from app.schemas.error_report import ErrorReportCreate
 from app.services import error_report_service
 
-app = FastAPI(title="Padisaar CRM API", version="1.0.0", redirect_slashes=False)
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    try:
+        await ensure_auth_schema(engine)
+    except Exception:
+        logger.exception(
+            "Failed to ensure auth schema — login may return 500 until "
+            "migrations / fix_login_otp.sql are applied"
+        )
+    yield
+
+
+app = FastAPI(
+    title="Padisaar CRM API",
+    version="1.0.0",
+    redirect_slashes=False,
+    lifespan=lifespan,
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -79,13 +102,25 @@ async def _log_backend_error(request: Request, message: str, stack: str | None, 
 async def unhandled_exception_handler(request: Request, exc: Exception):
     if isinstance(exc, (StarletteHTTPException, RequestValidationError)):
         raise exc
+
+    # Schema drift (missing users.mobile / login_otps) previously surfaced as a
+    # generic 500 on login — give operators a clearer hint.
+    detail = "خطای غیرمنتظره‌ای رخ داد"
+    message = str(exc) or type(exc).__name__
+    if "users.mobile" in message or "login_otps" in message or "UndefinedColumnError" in message:
+        detail = (
+            "ساختار دیتابیس به‌روز نیست. لطفاً migrations را اجرا کنید "
+            "یا فایل fix_login_otp.sql را روی دیتابیس اعمال کنید."
+        )
+        logger.error("Auth schema mismatch during %s %s: %s", request.method, request.url.path, message)
+
     await _log_backend_error(
         request,
-        str(exc) or type(exc).__name__,
+        message,
         traceback.format_exc(),
         500,
     )
-    return JSONResponse(status_code=500, content={"detail": "خطای غیرمنتظره‌ای رخ داد"})
+    return JSONResponse(status_code=500, content={"detail": detail})
 
 
 @app.get("/")
