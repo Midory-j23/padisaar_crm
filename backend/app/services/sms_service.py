@@ -80,4 +80,4 @@ async def _send_http_gateway(mobile: str, message: str) -> None:
         logger.error("SMS gateway error %s: %s", response.status_code, response.text)
         raise BadRequestError("ارسال پیامک با خطا مواجه شد")
 
-    logger.info("SMS gateway OK %s for %s", response.status_code, mobile)
+    logger.info("SMS gateway OK %s for %s body=%s", response.status_code, mobile, response.text[:500])

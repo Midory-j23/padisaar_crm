@@ -21,14 +21,14 @@ class Settings(BaseSettings):
     SMS_GATEWAY_URL: str = "http://192.168.102.104/sms/send"
     SMS_GATEWAY_API_KEY: str = ""
     SMS_GATEWAY_TIMEOUT_SECONDS: float = 5.0
-    SMS_OTP_TEMPLATE: str = "کد ورود پدیسار CRM: {code}\nاعتبار: {minutes} دقیقه"
+    SMS_OTP_TEMPLATE: str = "کد ورود پدیسار CRM: {code} اعتبار: {minutes} دقیقه لغو11"
     SMS_DEBUG_RETURN_CODE: bool = False
     OTP_LENGTH: int = 6
     OTP_EXPIRE_MINUTES: int = 5
     OTP_RESEND_COOLDOWN_SECONDS: int = 60
     OTP_MAX_ATTEMPTS: int = 5
 
-    model_config = SettingsConfigDict(env_file=".env")
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     @property
     def cors_origins_list(self) -> list[str]:
