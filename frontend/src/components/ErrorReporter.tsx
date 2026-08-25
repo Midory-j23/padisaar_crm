@@ -35,23 +35,9 @@ export default function ErrorReporter() {
     window.addEventListener('error', onError)
     window.addEventListener('unhandledrejection', onRejection)
 
-    if (import.meta.env.DEV) {
-      ;(window as Window & { __crmReportTestError?: () => void }).__crmReportTestError = () => {
-        reportClientError({
-          source: 'frontend',
-          message: 'خطای آزمایشی CRM',
-          stack: 'Test stack trace\n  at ErrorReportsPage (test)',
-          path: window.location.pathname,
-        })
-      }
-    }
-
     return () => {
       window.removeEventListener('error', onError)
       window.removeEventListener('unhandledrejection', onRejection)
-      if (import.meta.env.DEV) {
-        delete (window as Window & { __crmReportTestError?: () => void }).__crmReportTestError
-      }
     }
   }, [])
 

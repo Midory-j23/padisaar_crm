@@ -82,9 +82,6 @@ export default function LoginPage() {
       setOtpCode('')
       setResendAfter(data.resend_after)
       toast.success(data.message)
-      if (data.debug_code) {
-        toast.info(`کد تست: ${toPersianDigits(data.debug_code)}`, { duration: 15000 })
-      }
     } catch (err: unknown) {
       const message =
         (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ??
@@ -124,9 +121,6 @@ export default function LoginPage() {
       const { data } = await authApi.sendOtp(normalizeMobile(phone))
       setResendAfter(data.resend_after)
       toast.success(fa.auth.otpResent)
-      if (data.debug_code) {
-        toast.info(`کد تست: ${toPersianDigits(data.debug_code)}`, { duration: 15000 })
-      }
     } catch (err: unknown) {
       const message =
         (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ??

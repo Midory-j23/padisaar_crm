@@ -263,8 +263,6 @@ export const fa = {
     errorDetails: 'جزئیات فنی',
     markResolved: 'رفع شد',
     errorResolved: 'خطا به‌عنوان رفع‌شده علامت خورد',
-    sendTestError: 'ثبت خطای آزمایشی',
-    testErrorSent: 'خطای آزمایشی ثبت شد',
     openErrorsBanner: (n: number) =>
       `${toPersianDigits(n)} خطا در برنامه ثبت شده — مشاهده گزارش`,
     changePassword: 'تغییر رمز عبور',

@@ -50,25 +50,6 @@ export default function ErrorReportsPage() {
   const [status, setStatus] = useState('open')
   const [source, setSource] = useState('')
   const [resolvingId, setResolvingId] = useState<string | null>(null)
-  const [sendingTest, setSendingTest] = useState(false)
-
-  const sendTestError = async () => {
-    setSendingTest(true)
-    try {
-      await errorsApi.create({
-        source: 'frontend',
-        message: 'خطای آزمایشی CRM',
-        stack: 'Test stack trace\n  at ErrorReportsPage (manual test)',
-        path: window.location.pathname,
-      })
-      toast.success(fa.settings.testErrorSent)
-      await fetchErrors(true)
-    } catch {
-      toast.error(fa.toast.error)
-    } finally {
-      setSendingTest(false)
-    }
-  }
 
   const fetchErrors = useCallback(
     async (silent = false) => {
@@ -126,15 +107,10 @@ export default function ErrorReportsPage() {
             </p>
           )}
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={sendTestError} disabled={sendingTest}>
-            {fa.settings.sendTestError}
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => fetchErrors(true)} disabled={refreshing}>
+        <Button variant="outline" size="sm" onClick={() => fetchErrors(true)} disabled={refreshing}>
           <RefreshCw className={`ml-1 h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
           {fa.actions.refresh}
         </Button>
-        </div>
       </div>
 
       <div className="flex flex-wrap gap-3">

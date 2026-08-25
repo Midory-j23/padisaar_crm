@@ -62,15 +62,22 @@ async def _send_http_gateway(mobile: str, message: str) -> None:
     payload = {"mobile": mobile, "message": message}
 
     timeout = settings.SMS_GATEWAY_TIMEOUT_SECONDS
-    async with httpx.AsyncClient(timeout=timeout) as client:
-        response = await client.post(
-            settings.SMS_GATEWAY_URL,
-            headers=headers,
-            json=payload,
-        )
+    try:
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            response = await client.post(
+                settings.SMS_GATEWAY_URL,
+                headers=headers,
+                json=payload,
+            )
+    except httpx.TimeoutException:
+        logger.error("SMS gateway timeout after %ss: %s", timeout, settings.SMS_GATEWAY_URL)
+        raise BadRequestError("سرور پیامک پاسخ نداد. لطفاً دوباره تلاش کنید")
+    except httpx.RequestError as exc:
+        logger.error("SMS gateway connection error: %s", exc)
+        raise BadRequestError("اتصال به سرور پیامک برقرار نشد")
 
     if response.status_code >= 400:
         logger.error("SMS gateway error %s: %s", response.status_code, response.text)
         raise BadRequestError("ارسال پیامک با خطا مواجه شد")
 
-    logger.info("SMS gateway response %s: %s", response.status_code, response.text)
+    logger.info("SMS gateway OK %s for %s", response.status_code, mobile)
